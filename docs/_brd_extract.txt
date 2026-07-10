@@ -1,0 +1,2360 @@
+Business Requirements Document (BRD)
+Project: Viral Velocity Engine
+Version: 1.0
+Date: TBD
+Prepared by: Manaknight Inc.
+1. Executive Summary
+The Viral Velocity Engine is a mobile application designed to help users decide which photos to post on social media by providing a social score for each picture. The app also enables AI-powered photo enhancement to improve image quality and boost scores. Users can upload multiple photos, view AI enhancements, and make data-driven posting decisions. An admin web portal will provide oversight of users, subscriptions, and metrics.
+2. Release Schedule 
+Release #
+Name
+Scope
+Key Deliverables
+1 (2 weeks)
+Admin (MVP), Moderation/Privacy
+Stand up admin web and baseline guardrails
+Admin login dashboard shell (collapsible sidebar); content moderation with configurable tolerance; privacy hooks (PII/EXIF handling, delete-on-request)
+2(2 weeks)
+Backend/API
+Scoring
+Wire mobile ↔ backend and implement scoringAuth/upload/list APIs; persistence (Users, Photos, Enhancements, Subscriptions, Admin); Social Score (0–100) with 4 master scores
+Auth/upload/list APIs; persistence (Users, Photos, Enhancements, Subscriptions, Admin); Social Score (0–100) with 4 master scores
+sub-score breakdown; tunable weights
+3(1 weeks)
+Mobile Core (Auth, Upload, Scoring, Library)
+Deliver end-to-end user flow under free-trial rules
+Sign Up/Login/OTP reset; ToS/Privacy links; welcome email; under-18 parental popup; free trial: 5 photos / first 30 days; gallery multi-select (1–5)
+camera; scorecollapsible details; Library with filters (Score/Date), ASC/DESC, delete
+4 (2 weeks)
+Enhancement Subscriptions
+Admin Ops
+Add enhancement UX, paywall, and admin tools
+Enhance (up to 5 versions, re-score); swipe save/discard; side-by-side compare; Add Prompt (selection-based); plans: Monthly/Annual, admin-config discount, upgrade logic; cancel flow (term end, no refund, data self-deletion timer); Admin: Images Matched (search/export/view Passed/Failed), Subscribers (search/export/activate/deactivate), discount config, data self-deletion setting, admin profile (password, 2FA)
+5 (1 weeks)
+QA Hardening
+Store Launch
+Stabilize and ship 
+Functional, non-functional tests pass; retention job verified; admin search/export reliability; App Store / Google Play submission & launch readiness
+3. Business Requirements
+3.1 Functional Requirements
+Requirement ID
+Description
+FR-1
+Users can sign up, log in, and reset passwords (OTP flow for reset; Remember Me on login).
+FR-2
+Sign-up requires consent to Terms of Service and Privacy Policy; links open from Sign-up and Settings.
+FR-3
+Sign-up triggers welcome email.
+FR-4
+If DOB < 18, show a parental supervision popup that must be accepted to proceed.
+FR-5
+Guest login is disabled; all users must register to access the app.
+FR-6
+Free trial: 5 photos during the first 30 days after sign-up (one-time trial only).
+FR-7
+Users can upload 1–5 photos per batch from gallery; selection limit enforced with clear message.
+FR-8
+Users can capture a new photo via camera and request immediate scoring.
+FR-9
+Each photo shows a main Social Score (0–100).
+FR-10
+Score Details collapsible shows sub-scores: Technical Quality, Composition, Emotional Resonance, Storytelling, Color Psychology.
+FR-11
+If multiple images were selected, a right-side arrow enables swiping through each image’s scores.
+FR-12
+Enhance generates up to 5 enhanced versions, each with its own Social Score.
+FR-13
+Users can swipe right (save) or left (discard) enhanced versions; saved ones persist to Library.
+FR-14
+Side-by-Side Compare shows original vs selected enhanced image.
+FR-15
+Add Prompt for Further Edit opens only when tapped; prompt applies to selected enhanced image(s); supports selecting one or many.
+FR-16
+The app does not alter personal appearance (e.g., make someone thinner/celebrity-like).
+FR-17
+Content moderation blocks violent/vulgar/inappropriate images; tolerance is configurable.
+FR-18
+Library lists all originals and enhanced outputs; user can filter by Score or Date with ASC/DESC ordering.
+FR-19
+Users can delete originals and enhanced images from Library (removes from user view).
+FR-20
+Selecting multiple enhanced images in Library supports batch prompting for further edits.
+FR-21
+Subscription page shows Monthly and Annual plans and highlights current plan with expiry date.
+FR-22
+Discounts (e.g., yearly) are admin-configurable and reflected in the Subscription UI.
+FR-23
+Upgrade button only appears when a higher plan is available (e.g., Monthly → Annual); Annual does not show Upgrade.
+FR-24
+Cancel Subscription flow shows “no refund,” term end date, and informs about data self-deletion timing.
+FR-25
+When a user is not subscribed (expired trial or cancelled), app access is blocked and prompts to subscribe.
+FR-26
+Settings allows editing Full Name and Email; Change Password requires verification email.
+FR-27
+Logout and (if present) Disable Profile operate per wireframe; login credentials are retained after cancellation.
+FR-28
+Admin Login (web) with collapsible sidebar.
+FR-29
+Admin Dashboard shows Total Users, Active Subscribers, Revenue, Avg Image Score, plus a Recent Activity table.
+FR-30
+Images Matched (Admin) lists User, Plan, Images Scored, Avg Score, Last Active; supports Search and Export.
+FR-31
+View on Images Matched shows Image Uploaded and Enhanced images with Passed/Failed (saved/discarded) status.
+FR-32
+Data Self-Deletion (Admin) allows setting Month/Day retention window; Save/Cancel updates policy.
+FR-33
+Subscribers Page (Admin) lists Username, Email, Plan Type, Renewal Date, Status; Search, Export, and Active/Inactive filters.
+FR-34
+Admin can Activate/Deactivate users with confirmation prompts.
+FR-35
+Discount configuration modal (Admin) updates Monthly/Yearly price and discount; Add Package supported.
+FR-36
+Admin Profile supports Change Password and Enable 2FA toggle.
+3.2 Non-Functional Requirements
+Requirement ID
+Description
+NFR-1
+Performance: Scoring returns results within an acceptable time under normal load.
+NFR-2
+Performance: Enhancement returns results within an acceptable time for up to 5 images concurrently.
+NFR-3
+Robustness: Attempts to upload >5 images are blocked gracefully with clear error; no crashes/hangs.
+NFR-4
+Scalability: Concurrent users can upload/score without materially impacting one another.
+NFR-5
+Reliability: Admin Search and Export complete without timeout for dataset sizes implied by wireframe tables.
+NFR-6
+Security: Password-reset OTP is rate-limited; invalid attempts are throttled.
+NFR-7
+Security: 2FA (Admin) enforces a second factor on the next login after enabling.
+NFR-8
+Privacy: Data Self-Deletion job purges images after configured retention; actions are logged.
+NFR-9
+Privacy: User-initiated image deletion (Library) and admin deletion requests are honored per retention settings.
+NFR-10
+Moderation: Tolerance threshold is configurable; blocked images are not stored, scored, or enhanced.
+NFR-11
+UI Consistency: Score badge appears top-right on images where specified; consistent across screens.
+NFR-12
+UI Consistency: Score Details collapsible behaves the same for original and enhanced images.
+NFR-13
+Usability: Side-by-Side Compare remains legible and responsive on common mobile sizes.
+NFR-14
+Usability: Swipe interactions on enhancement stack are responsive with low gesture error rate.
+NFR-15
+Data Integrity: Saved/Discarded states persist across app restarts and appear in Admin as Passed/Failed.
+NFR-16
+Correctness: Library filters and ordering (Score/Date; ASC/DESC) return stable, correct results.
+NFR-17
+Access Control: Non-subscribers/expired trials are blocked from app functionality and prompted to subscribe.
+NFR-18
+Subscription State: Cancel flow shows exact term end; after term, access is blocked unless re-subscribed; data deletion occurs on schedule unless re-subscribed before deadline.
+NFR-19
+Error Handling: Clear, user-friendly messages for moderation blocks, selection-limit errors, and paywall blocks.
+NFR-20
+Compatibility: Mobile app supports the target platforms (iOS/Android) and expected gallery/camera permissions behavior.
+4. Key Stakeholders
+This section will be filled later. Placeholders include:
+Name
+Email
+Phone Number
+Role
+5. Project Constraints
+- App Store/Google Play subscription rules (must use native payment gateways).
+- AI model limitations – enhancement accuracy may vary.
+- Content moderation challenges with inappropriate images.
+- Performance stress under bulk uploads.
+- Legal compliance regarding user data deletion requests.
+6. QA Checklist
+Functional Test Cases:
+Test ID
+Test Case
+F-1
+Sign up with valid inputs → account created; welcome email sent; trial = 5 photos in first 30 days active.
+F-2
+Sign up when DOB < 18 → parental supervision popup appears and must be accepted.
+F-3
+Sign up requires ToS/Privacy consent; links open correctly.
+F-4
+Login with valid credentials + Remember Me persists session.
+F-5
+Forgot Password → OTP email sent; valid OTP resets password; invalid OTP rejected.
+F-6
+Guest login disabled; only registered accounts can access app.
+F-7
+Expired trial/non-subscriber login blocked → subscription required; no repeat free trial.
+F-8
+Gallery multi-select enforces 1–5 photo limit.
+F-9
+Camera capture allows immediate scoring.
+F-10
+Uploaded image shows Social Score + collapsible sub-scores (technical, composition, resonance, storytelling, color).
+F-11
+Swipe between multiple images works; arrow only appears if >1 selected.
+F-12
+Moderation blocks vulgar/violent/inappropriate images; tolerance configurable.
+F-13
+Enhance generates up to 5 versions with their own Social Scores.
+F-14
+Swipe right/left on enhancement stack → Saved/Discarded state recorded; Library/Admin reflect Passed/Failed.
+F-15
+Side-by-Side Compare works between original and enhanced.
+F-16
+Prompting opens only when tapped; applies to selected image(s); supports batch selection.
+F-17
+Enhanced images generally improve score compared to original.
+F-18
+Library lists history; filters by Score/Date; ASC/DESC toggle works.
+F-19
+Delete option removes original and enhanced images; Admin sees status consistent with retention rules.
+F-20
+Batch prompt works for multiple enhanced images in Library.
+F-21
+Plans page shows Monthly/Annual + configurable discount; upgrade only shown when valid.
+F-22
+Cancel Subscription flow shows term end, no refund, deletion timing; login persists until end.
+F-23
+Re-login during grace window without subscription blocked; re-subscribing before deadline retains data.
+F-24
+Profile edit for Name/Email works; Change Password requires verification email.
+F-25
+Disable Profile / Logout works; login credentials not deleted.
+F-26
+Admin dashboard shows Users, Revenue, Active Subs, Avg Score, Recent Activity.
+F-27
+Admin Images Matched lists user stats; Search, Export, and View work; Passed/Failed states visible.
+F-28
+Admin Data Self-Deletion setting saves correctly; applies to future purges.
+F-29
+Admin Subscribers Page → search/filter Active/Inactive; Activate/Deactivate with confirmation.
+F-30
+Admin Discount modal updates Monthly/Yearly prices/discounts; Add Package works; Export lists users.
+F-31
+Admin Profile → Change Password works; Enable 2FA toggle functions.
+F-32
+Welcome email sent on sign-up; branding matches.
+F-33
+ToS/Privacy links clickable in Sign Up & Settings.
+Non-Functional Test Cases:
+Test ID
+Test Case
+NF-1
+Scoring returns within acceptable response time.
+NF-2
+Enhancement returns results within acceptable time for up to 5 images.
+NF-3
+Uploading >5 images blocked gracefully; error shown.
+NF-4
+Admin dashboards load reliably for list sizes shown in wireframes.
+NF-5
+Multiple users uploading/scoring simultaneously handled without blocking.
+NF-6
+Admin exports/searches operate without timeout for typical datasets.
+NF-7
+Password reset OTP is rate-limited to prevent brute force.
+NF-8
+Admin Profile 2FA toggle enables second factor for next login.
+NF-9
+Data Self-Deletion job purges images after configured time; audit log recorded.
+NF-10
+User-requested deletions honored in Library/Admin within retention policy.
+NF-11
+Moderation tolerance configurable; blocked images not stored or scored.
+NF-12
+Score badge consistently appears top-right where specified.
+NF-13
+Collapsible Score Details works consistently across original/enhanced.
+NF-14
+Side-by-Side Compare layout remains legible on common device sizes.
+NF-15
+Swipe responsiveness reliable for enhancement stack.
+NF-16
+Saved/discarded states persist across app restarts; Admin reflects Passed/Failed.
+NF-17
+Library filters return correct ordering and results.
+NF-18
+Cancel Subscription shows correct term end; access blocked after term; data deletion occurs as scheduled.
+NF-19
+Payment failure → user blocked; data deletion timer starts; re-subscribing before deadline preserves data.
+7. Database Schema
+User Table:
+Field
+Data Type
+Constraints
+Description
+user_id
+INT (PK, Auto Increment)
+Primary Key, Unique, Not Null
+Unique identifier for each user
+name
+VARCHAR(100)
+Not Null
+Full name of the user
+email
+VARCHAR(150)
+Unique, Not Null
+User’s email address (login credential)
+password_hash
+VARCHAR(255)
+Not Null
+Encrypted password hash
+plan_type
+ENUM('Free','Monthly','Annual')
+Default = 'Free'
+Current plan associated with the user
+subscription_status
+ENUM('Active','Inactive','Expired')
+Not Null
+Current status of subscription
+Photos Table:
+Field
+Data Type
+Constraints
+Description
+photo_id
+INT (PK, Auto Increment)
+Primary Key, Unique, Not Null
+Unique identifier for each uploaded photo
+user_id
+INT (FK → Users.user_id)
+Not Null
+Reference to the owner of the photo
+upload_date
+DATETIME
+Not Null
+Timestamp of upload
+score
+INT
+Nullable
+Overall social score (0–100)
+sub_scores
+JSON
+Nullable
+Detailed sub-scores (technical, composition, etc.)
+status
+ENUM('Original','Enhanced','Deleted')
+Default = 'Original'
+Current state of the photo
+Enhancements Table:
+Field
+Data Type
+Constraints
+Description
+enhancement_id
+INT (PK, Auto Increment)
+Primary Key, Unique, Not Null
+Unique identifier for each enhanced version
+photo_id
+INT (FK → Photos.photo_id)
+Not Null
+Reference to the base photo
+version_number
+TINYINT
+Not Null
+Version index (1–5) for enhanced images
+score
+INT
+Nullable
+Social score of the enhanced image
+Subscription Table:
+Field
+Data Type
+Constraints
+Description
+sub_id
+INT (PK, Auto Increment)
+Primary Key, Unique, Not Null
+Unique subscription record identifier
+user_id
+INT (FK → Users.user_id)
+Not Null
+Reference to subscribed user
+plan
+ENUM('Free Trial','Monthly','Annual')
+Not Null
+Subscription type
+start_date
+DATE
+Not Null
+Subscription start date
+end_date
+DATE
+Not Null
+Subscription end date
+status
+ENUM('Active','Cancelled','Expired')
+Not Null
+Current subscription status
+Admin Table:
+Field
+Data Type
+Constraints
+Description
+admin_id
+INT (PK, Auto Increment)
+Primary Key, Unique, Not Null
+Unique identifier for each admin
+name
+VARCHAR(100)
+Not Null
+Full name of the admin
+email
+VARCHAR(150)
+Unique, Not Null
+Admin email address
+role
+ENUM('Super Admin','Moderator')
+Not Null
+Role defining admin permissions
+8. Mockup Screens with Explanations
+Auth Landing
+User flow:
+The app launches to a Landing screen showing brand mark, “Viral Velocity Engine” and a Tag Line.
+Two primary CTAs:
+Sign Up → navigates to the Sign-Up screen.
+Login → navigates to the Login screen.
+No guest access (per requirements).
+From Sign-Up or Login, user can navigate back to this Landing screen.
+Functional QA test cases
+Test ID
+Precondition
+Steps
+Expected Result
+L-F1
+Fresh app launch
+Open the app
+Landing screen renders with logo/brand, title, tag line, Sign Up, Login visible
+L-F2
+—
+Tap Sign Up
+Navigates to the Sign-Up screen
+L-F3
+—
+Tap Login
+Navigates to the Login screen
+L-F4
+On Sign-Up
+Use OS/app Back
+Returns to Landing screen
+L-F5
+On Login
+Use OS/app Back
+Returns to Landing screen
+L-F6
+—
+Verify presence of guest/skip option
+No guest/skip option present
+L-F7
+First paint complete
+Tap Sign Up repeatedly (debounce)
+Single navigation to Sign-Up; no double-push/duplicate screens
+L-F8
+First paint complete
+Tap Login repeatedly (debounce)
+Single navigation to Login; no double-push/duplicate screens
+L-F9
+Small devices
+View Landing on small screen height
+Both CTAs remain visible (scroll if needed); no overlap or clipping
+L-F10
+Dark/Light mode
+Toggle system theme
+Branding and CTAs remain legible; contrast maintained
+L-F11
+Slow device
+Relaunch app
+Landing loads without visible layout shift; CTAs enabled on first frame
+L-F12
+No network
+Launch app offline
+Landing still renders (no network dependency to show this screen)
+Non-functional QA test cases 
+Test ID
+Area
+Steps/Scope
+Expected Result
+L-NF1
+Performance
+Measure time to first interactive
+Landing CTAs interactive ≤ 1s on target devices
+L-NF2
+Accessibility
+Screen reader focus order
+Title → Tag line → Sign Up → Login; accessible names announced
+L-NF3
+Accessibility
+Hit-target size
+Buttons meet ≥ 44×44 pt target area
+L-NF4
+Accessibility
+Contrast
+Button text/background and title meet WCAG AA
+L-NF5
+Resilience
+App lifecycle
+Background → resume returns to Landing state intact
+L-NF6
+Orientation
+Portrait/landscape switch
+Layout adapts without truncation/overlap
+L-NF7
+Analytics (if enabled)
+Open app; tap each CTA once
+One screen_view event for Landing; one click event per CTA (no duplicates)
+L-NF8
+Stability
+Monkey taps
+No crashes; no multiple stacked routes from rapid taps
+Wireframe page:
+Flow Diagram
+Login (Pre-Auth)
+User flow
+User lands on Login from the Welcome screen.
+Inputs Email and Password.
+Optional Remember Me persists the session on device.
+Forgot Password? takes the user into the reset flow (enter email → receive OTP → enter OTP → set new password → return to Login).
+Login validates credentials:
+Success → start session (apply Remember Me if checked) → go to next screen (Dashboard).
+Failure → show inline error and remain on Login.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+LG-F1
+App launched
+Open Login screen
+Title, Email field, Password field, Remember Me, Forgot Password?, Login button visible
+LG-F2
+—
+Tap Forgot Password?
+Navigates to Reset Password (enter email)
+LG-F3
+Valid account
+Enter valid email + password → tap Login
+Successful auth; session created; navigate to next screen
+LG-F4
+Invalid password
+Enter valid email + wrong password → tap Login
+Inline error shown; user remains on Login
+LG-F5
+Invalid email format
+Enter malformed email → tap Login
+Client validation blocks submit; format error shown
+LG-F6
+Empty fields
+Leave both fields empty → tap Login
+Required-field errors shown; no request sent
+LG-F7
+Remember Me checked
+Check Remember Me → login successfully → relaunch app
+User remains signed in (session persisted)
+LG-F8
+Remember Me unchecked
+Leave unchecked → login → kill & relaunch
+User is not auto-signed-in; sees Welcome/Login as per app policy
+LG-F9
+Password reset (happy path)
+Forgot Password? → enter registered email → Send OTP → enter valid OTP → set new password
+Success confirmation; returns to Login; new password works
+LG-F10
+Password reset (invalid email)
+Forgot Password? → enter unregistered email
+Informative error; cannot proceed
+LG-F11
+Password reset (wrong OTP)
+Enter incorrect/expired OTP
+Error shown; cannot proceed to set password
+LG-F12
+Rate / debounce
+Double-tap Login quickly
+Single request; no duplicate navigations
+LG-F13
+Keyboard handling
+Focus password → tap Login on keyboard
+Submits same as button tap
+LG-F14
+Back navigation
+From Login press OS back
+Returns to Welcome screen
+LG-F15
+Masking
+Type password
+Characters masked while typing
+Non-functional QA tests
+Test ID
+Area
+Steps/Scope
+Expected Result
+LG-NF1
+Performance
+Measure time from screen load to tappable controls
+≤ 1s on target devices
+LG-NF2
+Accessibility
+Screen reader traversal
+Order: Title → Email → Password → Remember Me → Forgot Password → Login; proper labels
+LG-NF3
+Accessibility
+Touch target size
+Interactive controls ≥ 44×44 pt
+LG-NF4
+Contrast
+Light/Dark modes
+Text and controls meet WCAG AA
+LG-NF5
+Resilience
+No network
+Login attempt shows network error; screen stable
+LG-NF6
+Stability
+Rapid taps/rotate
+No crashes; state preserved across orientation changes
+LG-NF7
+Privacy
+Password field
+No clipboard autofill leaks; field not exposed to screenshots beyond OS defaults
+LG-NF8
+Analytics (if enabled)
+Open Login; tap Login/Forgot once
+One screen_view; one event per action (no duplicates)
+Wireframe
+Flow Diagram:
+Forgot Password (OTP Flow)
+User flow
+From Login, user taps Forgot Password? → navigates to Forgot Password: Enter Email.
+User enters Email and taps Send OTP → navigates to Enter OTP screen.
+On Enter OTP, user types a 6-digit OTP and taps Reset Password.
+If OTP is valid, navigate to Change Password (New Password + Confirm) and, on success, return to Login.
+If OTP is invalid/expired, show an error and remain on OTP screen.
+Back from OTP returns to Enter Email; Back from Enter Email returns to Login.
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+FP-F1
+On Login
+Tap Forgot Password?
+Navigates to Forgot Password: Enter Email
+FP-F2
+Enter Email screen
+Leave email empty → tap Send OTP
+Required-field error; no request sent
+FP-F3
+Enter Email screen
+Enter malformed email → tap Send OTP
+Email-format error; no request sent
+FP-F4
+Enter Email screen
+Enter valid email → tap Send OTP
+Transition to Enter OTP screen
+FP-F5
+Enter OTP screen
+Leave OTP empty/partial (<6) → tap Reset Password
+Inline error; stays on screen
+FP-F6
+Enter OTP screen
+Enter non-numeric characters
+Rejected or auto-sanitized to digits; error if invalid
+FP-F7
+Enter OTP screen
+Enter invalid/expired OTP → tap Reset Password
+Error message; user remains on OTP screen
+FP-F8
+Enter OTP screen
+Enter valid 6-digit OTP → tap Reset Password
+Navigates to Change Password screen
+FP-F9
+Change Password screen
+New ≠ Confirm → tap Change/Save
+Mismatch error; no submit
+FP-F10
+Change Password screen
+New/Confirm meet policy → tap Change/Save
+Success message; navigate back to Login
+FP-F11
+Enter Email screen
+Tap Back
+Returns to Login
+FP-F12
+Enter OTP screen
+Tap Back
+Returns to Enter Email
+FP-F13
+Debounce
+Double-tap Send OTP quickly
+Single OTP send; no duplicate screens
+FP-F14
+Debounce
+Double-tap Reset Password quickly
+Single verification; no duplicate transitions
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+FP-NF1
+Performance
+Time from Send OTP to OTP screen
+Transition ≤ acceptable target on test devices
+FP-NF2
+Performance
+Time from Reset Password (valid OTP) to Change Password
+≤ acceptable target
+FP-NF3
+Accessibility
+Screen reader order/labels
+Proper labels for Email, OTP boxes; buttons announced clearly
+FP-NF4
+Accessibility
+Touch targets
+Inputs and buttons ≥ 44×44 pt
+FP-NF5
+Stability
+Rotate / background / resume during flow
+No crash; state (email/OTP) preserved
+FP-NF6
+Security
+OTP entry & errors
+OTP not echoed; errors don’t reveal account existence
+FP-NF7
+Security
+Brute-force mitigation
+Consecutive wrong OTP attempts trigger throttling/lockout per policy
+FP-NF8
+Privacy
+Logging
+OTP and new passwords are never logged or analytics-captured
+FP-NF9
+UX
+Keyboard
+Numeric keypad for OTP; focus auto-advances between boxes
+Wireframe:
+Flow Diagram:
+Change Password (OTP-verified)
+user flow
+User reaches Change Password after a successful OTP verification in the Forgot Password flow.
+Enters New Password and Confirm Password.
+Taps Reset Password:
+If fields are empty or don’t match → show inline error and stay on screen.
+If valid → update password, show success confirmation, then return to Login so the user can sign in with the new password.
+System/OS Back takes the user to the previous step (Enter OTP).
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+CP-F1
+Arrive from valid OTP
+Verify UI elements
+“Change Password” title, Enter Password, Confirm Password, Reset Password button are visible
+CP-F2
+—
+Leave both fields empty → tap Reset Password
+Required-field errors; no request sent
+CP-F3
+—
+Enter only one of the two fields → tap Reset Password
+Required-field error for the missing field
+CP-F4
+—
+Enter values where Password ≠ Confirm → tap Reset Password
+Mismatch error; stay on screen
+CP-F5
+Valid inputs
+Enter matching passwords → tap Reset Password
+Password updated; success confirmation; navigate to Login
+CP-F6
+Keyboard submit
+Focus Confirm field → press keyboard Done/Enter
+Triggers same as Reset Password
+CP-F7
+Debounce
+Double-tap Reset Password quickly
+Single submission; no duplicate requests or double navigation
+CP-F8
+Navigation
+Press OS Back
+Returns to Enter OTP screen
+Non-functional QA tests
+Test ID
+Area
+Steps/Scope
+Expected Result
+CP-NF1
+Performance
+Measure time from Reset Password to success state
+Completes within acceptable target on supported devices
+CP-NF2
+Accessibility
+Screen reader traversal & labels
+Order: Title → Password → Confirm → Reset; fields have proper accessible names
+CP-NF3
+Accessibility
+Touch targets
+Button/input targets ≥ 44×44 pt
+CP-NF4
+Contrast
+Light/Dark modes
+Text and button meet WCAG AA contrast
+CP-NF5
+Privacy/Security
+During entry & submission
+Password characters masked; values not logged or shown in toasts/notifications
+CP-NF6
+Stability
+Rotate, background, resume mid-entry
+No crash; typed values preserved on return
+CP-NF7
+Analytics (if enabled)
+Screen view + success event
+One screen_view; one password_reset_success (no duplicates)
+Wireframe:
+Flow Diagram:
+Sign Up
+user flow
+User enters Full Name, Email, Password, Confirm Password, Date of Birth.
+User must agree to Terms of Service & Privacy Policy (checkbox).
+On tapping Sign Up:
+If any required field is missing / ToS unchecked → show inline validation and stay on page.
+If DOB < 18 → show Parental Supervision popup; user must Agree to proceed.
+When valid (and parental agreement if required) → create account, send welcome email, and provision free trial (5 photos during first 30 days).
+Navigate to the next screen per app flow (e.g., Dashboard).
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+SU-F1
+App on Sign Up
+Verify UI elements
+Full Name, Email, Password, Confirm Password, DOB, ToS/Privacy checkbox, Sign Up button visible
+SU-F2
+—
+Leave one or more fields empty → tap Sign Up
+Inline required-field errors; no submission
+SU-F3
+—
+Enter Password ≠ Confirm Password → tap Sign Up
+Mismatch error shown; no submission
+SU-F4
+—
+Leave ToS/Privacy unchecked → tap Sign Up
+ToS/Privacy required error; no submission
+SU-F5
+DOB < 18
+Fill all fields + ToS checked → tap Sign Up
+Parental Supervision popup shown
+SU-F6
+Parental popup shown
+Tap Agree
+Proceed to account creation
+SU-F7
+Parental popup shown
+Tap Cancel/Close
+Return to Sign Up; account not created
+SU-F8
+Valid adult DOB
+Fill all fields + ToS checked → tap Sign Up
+Account created successfully
+SU-F9
+After successful create
+Observe outbound actions
+Welcome email sent
+SU-F10
+After successful create
+Check account entitlements
+Free trial provisioned: 5 photos during first 30 days
+SU-F11
+After successful create
+Follow navigation
+User is taken to the next screen (e.g., Dashboard)
+SU-F12
+Debounce
+Double-tap Sign Up quickly
+Single account creation; no duplicate requests
+SU-F13
+Keyboard handling
+Use keyboard Next/Done to move/submit
+Field focus advances; Done triggers same as Sign Up
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+SU-NF1
+Performance
+Measure time from tapping Sign Up to success
+Completes within acceptable time on target devices
+SU-NF2
+Accessibility
+Screen reader order/labels
+Title → fields (with labels) → ToS checkbox → Sign Up; descriptive names read
+SU-NF3
+Accessibility
+Touch targets
+Interactive controls ≥ 44×44 pt
+SU-NF4
+Contrast
+Light/Dark modes
+Text, fields, and button meet WCAG AA
+SU-NF5
+Stability
+Rotate / background / resume during entry
+No crashes; state preserved
+SU-NF6
+Privacy
+Password fields
+Characters masked; confirm masked; values not exposed in logs
+SU-NF7
+Analytics (if enabled)
+Screen view + Sign Up action
+One screen_view; one sign_up event (no duplicates)
+Wireframe:
+Flow Diagram:
+Dashboard (Home)
+User flow
+After successful Login/Sign-Up, the user lands on Dashboard.
+Upload Photos CTA opens the gallery/camera picker; user selects 1–5 photos to send for scoring.
+Recent Activity lists the latest scored items with thumbnail, date, and Social Score.
+Tapping a list item opens the Image Detail screen (where the full score + actions live).
+Bottom navigation:
+Home (this screen)
+Library (history, filters)
+Subscription (plan, discounts, upgrade/downgrade)
+Profile (account details, change password)
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+DB-F1
+Authenticated session
+Open Dashboard
+Title, Upload Photos, Recent Activity list, bottom nav visible
+DB-F2
+—
+Tap Upload Photos
+Opens gallery/camera picker
+DB-F3
+Picker open
+Select 0 photos → try to proceed
+Validation prevents submit; message shown
+DB-F4
+Picker open
+Select 1–5 photos → proceed
+Selection accepted; flow advances to scoring
+DB-F5
+Picker open
+Attempt >5 photos
+Blocked with clear limit message
+DB-F6
+With recent items
+Tap a Recent Activity card
+Opens Image Detail for that item
+DB-F7
+With recent items
+Verify order of list
+Most recent appears first (descending by date/time)
+DB-F8
+No history
+Open Dashboard
+Show meaningful empty state instead of list
+DB-F9
+Bottom nav
+Tap Library tab
+Navigates to Library
+DB-F10
+Bottom nav
+Tap Subscription tab
+Navigates to Subscription/Plans
+DB-F11
+Bottom nav
+Tap Profile tab
+Navigates to Profile
+DB-F12
+Score badge
+Inspect each list row
+Score (0–100) visible and aligned on the right
+DB-F13
+Return path
+From Image Detail, go back
+Returns to Dashboard with list intact
+DB-F14
+After upload
+Complete a scoring flow → return
+New items appear at top of Recent Activity
+Non-functional QA tests
+Test ID
+Area
+Steps/Scope
+Expected Result
+DB-NF1
+Performance
+Open Dashboard with typical history
+First interactive ≤ acceptable target on devices
+DB-NF2
+Performance
+After scoring completes, refresh list
+New items render without noticeable jank
+DB-NF3
+Accessibility
+Screen reader traversal
+Order: Title → Upload Photos → list items (thumb → title → date → score) → bottom nav
+DB-NF4
+Accessibility
+Touch targets
+Buttons/list rows/nav icons ≥ 44×44 pt
+DB-NF5
+Contrast
+Light/Dark modes
+Text, icons, and badges meet WCAG AA
+DB-NF6
+Stability
+Rapid taps + quick nav switching
+No crashes; state (scroll position, list) preserved
+DB-NF7
+Analytics (if enabled)
+View screen, tap Upload Photos, open item
+One screen_view:dashboard; one cta_click:upload_photos; one item_open:recent_activity (no duplicates)
+Wireframe:
+Flow Diagram:
+Photo Upload (Gallery Grid)
+user flow
+User lands on Photo Upload from Dashboard.
+A gallery grid is shown. Tapping a thumbnail toggles selection (indicated by a green check mark).
+Selection is limited to 1–5 photos.
+Get Score is enabled only when selection count is within 1–5.
+Tapping Get Score uploads the selected photos for scoring and navigates to the results flow.
+If gallery permission isn’t granted, the app requests access first (allow → show grid; deny → stay with guidance).
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+PU-F1
+Authenticated
+Open Photo Upload
+Title, grid, and Get Score button visible; button disabled initially
+PU-F2
+Permission not granted
+Open Photo Upload
+System permission prompt appears
+PU-F3
+Permission prompt
+Tap Allow
+Grid loads; thumbnails visible
+PU-F4
+Permission prompt
+Tap Don’t Allow
+Stay on screen; show guidance/toast; no crash
+PU-F5
+—
+Tap one thumbnail
+Item shows selected state (green check); count = 1; Get Score enabled
+PU-F6
+1 selected
+Tap same thumbnail again
+Item deselected; count = 0; Get Score disabled
+PU-F7
+—
+Select 2–5 thumbnails
+All show selected state; count updates; Get Score enabled
+PU-F8
+5 selected
+Attempt to select a 6th
+Prevent selection; show clear limit message (1–5)
+PU-F9
+—
+Try to proceed with 0 selected
+Validation prevents submit; tip/toast shown
+PU-F10
+1–5 selected
+Tap Get Score
+Selected items uploaded; navigate to scoring/results
+PU-F11
+Mixed taps
+Rapidly select/deselect items
+No visual glitches; count stays accurate
+PU-F12
+Scroll grid
+Scroll and select items off-screen then back
+Selection state persists when items reappear
+PU-F13
+Bottom nav
+Tap Library / Subscription / Profile icons
+Navigates accordingly without losing app state
+PU-F14
+Back navigation
+Press OS Back
+Returns to previous screen (Dashboard) without crash
+PU-F15
+Error path
+Network goes offline then tap Get Score
+Friendly network error; stay on screen; selections preserved
+PU-F16
+Debounce
+Double-tap Get Score quickly
+Single submission; no duplicate uploads/transitions
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+PU-NF1
+Performance
+Time to render first row of thumbnails
+Within acceptable target on supported devices
+PU-NF2
+Performance
+Select 1–5 and tap Get Score
+Transition to results without jank/spinners hang
+PU-NF3
+Stability
+Long scroll through large gallery
+No crashes; memory stable; smooth scrolling
+PU-NF4
+Accessibility
+Screen reader order/labels
+Each cell has accessible name; Get Score announced with state
+PU-NF5
+Accessibility
+Touch targets
+Thumbnails and button ≥ 44×44 pt
+PU-NF6
+Contrast
+Light/Dark modes
+Selected check and labels meet WCAG AA
+PU-NF7
+Resilience
+Rotate / background / resume
+Selection state preserved; no UI breakage
+PU-NF8
+Analytics (if enabled)
+Screen view, selections, Get Score
+One screen_view; selection/change events throttled; one submit event
+PU-NF9
+Privacy
+Before upload
+No unintended preview uploads; only user-selected items are sent
+PU-NF10
+Error handling
+Permission revoked mid-session
+App re-prompts or shows guidance gracefully
+Wireframe:
+Flow Diagram:
+Score (Per-Image Results)
+User flow
+The user lands here after Photo Upload → scoring completes for one image.
+The image preview shows a Social Score (0–100).
+Score Details is a collapsible section; expanding reveals sub-scores: Technical Quality, Composition, Emotional Resonance, Storytelling, Color Psychology.
+Enhance Photo starts the enhancement flow (generates up to 5 versions for this image).
+Save Original stores the original image in the Library.
+If multiple images were selected for scoring, a Next arrow appears to navigate to the next image’s score screen; if only one image, the arrow is hidden.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+SC-F1
+Scoring just finished
+Open Score screen
+Image preview, Social Score, Score Details, Enhance Photo, Save Original visible
+SC-F2
+—
+Tap Score Details to expand
+Sub-scores list appears (Technical, Composition, Emotional Resonance, Storytelling, Color Psychology)
+SC-F3
+Details expanded
+Tap Score Details to collapse
+Sub-scores hide; state updates correctly
+SC-F4
+—
+Verify Social Score placement
+Score badge/value visible and aligned per spec
+SC-F5
+Single image only
+Inspect top-right
+Next arrow is hidden
+SC-F6
+Multiple images in batch
+Inspect top-right
+Next arrow is visible
+SC-F7
+Multiple images in batch
+Tap Next arrow
+Navigates to next image’s Score screen
+SC-F8
+On next image
+Tap Back / previous gesture
+Returns to prior image’s Score screen
+SC-F9
+—
+Tap Enhance Photo
+Transitions to enhancement flow; begins generating up to 5 versions
+SC-F10
+—
+Tap Save Original
+Original saved to Library; confirmation/feedback shown
+SC-F11
+After saving original
+Go to Library
+Saved original appears in history
+SC-F12
+Debounce
+Double-tap Enhance Photo quickly
+Single transition; no duplicate jobs
+SC-F13
+Debounce
+Double-tap Save Original quickly
+Single save; no duplicate entries
+SC-F14
+Error path
+Network drops then tap Enhance Photo
+Friendly error; remain on screen; no crash
+SC-F15
+Error path
+Network drops then tap Save Original
+Friendly error; remain on screen; no duplicate partial saves
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+SC-NF1
+Performance
+Measure time to first paint of score screen
+≤ target on supported devices
+SC-NF2
+Performance
+Expand/collapse Score Details repeatedly
+Smooth with no jank
+SC-NF3
+Stability
+Rapidly navigate through batch via Next arrow
+No crashes; state (expanded/collapsed) per image is respected
+SC-NF4
+Accessibility
+Screen reader order/labels
+Title → image → Social Score → Score Details (expand/collapse state announced) → Enhance → Save
+SC-NF5
+Accessibility
+Touch targets
+Buttons and arrow ≥ 44×44 pt
+SC-NF6
+Contrast
+Light/Dark modes
+Score badge/text and buttons meet WCAG AA
+SC-NF7
+Analytics (if enabled)
+View screen; expand details; start enhance; save original
+One screen_view; one details_toggle; one enhance_start; one save_original (no duplicates)
+Wireframe:
+Flow Diagram:
+Enhanced Version (List & Prompting)
+User flow
+Arrives from Score → Enhance Photo.
+Shows up to 5 enhanced versions of the same image. Each card has an image preview, Social Score, and Score Details (collapsible).
+User can select one or many enhanced cards (selection state visible).
+Side-by-Side Compare toggle opens comparison of Original vs Selected Enhanced and returns here when closed.
+Add Prompt for Further Edit: when tapped, a prompt field expands; user enters text and submits → system generates prompted version(s) for only the selected enhanced images → list refreshes with updated versions and scores.
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+EV-F1
+From Score → Enhance
+Verify layout
+List of enhanced cards (up to 5), each with preview, Social Score, Score Details; Compare toggle; Add Prompt button
+EV-F2
+—
+Tap a card
+Card enters selected state (highlight/border/check)
+EV-F3
+1+ selected
+Tap the same card
+Card deselects; selection count updates
+EV-F4
+Multiple available
+Select several cards
+All show selected state; count accurate
+EV-F5
+Any state
+Tap Score Details on a card
+Sub-scores expand; tap again collapses
+EV-F6
+1+ selected
+Toggle Side-by-Side Compare
+Comparison opens for selected image (or primary selected); closing returns to list
+EV-F7
+No selection
+Toggle Side-by-Side Compare
+App chooses current focused card or prompts to select one (per spec); no crash
+EV-F8
+No selection
+Tap Add Prompt for Further Edit
+Prompt field expands; if selection required, show guidance to select images
+EV-F9
+1 selected
+Tap Add Prompt… → enter prompt → Submit
+New prompted version generated for that image; shows updated card with new score
+EV-F10
+Many selected
+Add prompt → Submit
+Prompt applied to all selected; each shows updated version/score
+EV-F11
+Prompt area open
+Clear text and cancel/close
+Prompt field collapses; selection remains
+EV-F12
+Navigation
+Tap bottom tabs (Home/Library/Subscription/Profile)
+Navigates accordingly; returning preserves list state/selection
+EV-F13
+Debounce
+Double-tap Submit quickly
+Single prompt job; no duplicate versions
+EV-F14
+Error
+Network lost during Submit
+Friendly error; list remains; no partial/duplicate entries
+EV-F15
+Back path
+OS Back
+Returns to Score screen for the same image
+Non-functional QA tests
+Test ID
+Area
+Steps/Scope
+Expected Result
+EV-NF1
+Performance
+Time to render list of up to 5 cards
+Loads within target; scrolling is smooth
+EV-NF2
+Performance
+Submit prompt on 1–5 selected
+Returns results within acceptable time; UI stays responsive
+EV-NF3
+Stability
+Rapid select/deselect and expand/collapse
+No crashes; selection and detail state consistent
+EV-NF4
+Accessibility
+Screen reader order and labels
+Card title/score/details/selection described; toggle and buttons announced
+EV-NF5
+Accessibility
+Touch targets
+Cards, toggle, button ≥ 44×44 pt
+EV-NF6
+Contrast
+Light/Dark modes
+Selection highlight, scores, and controls meet WCAG AA
+EV-NF7
+Resilience
+Rotate / background / resume mid-prompt
+State (selection, prompt text) preserved
+EV-NF8
+Analytics (if enabled)
+Screen view, select, compare, submit prompt
+One screen_view:enhanced_list; properly de-duplicated action events
+EV-NF9
+Privacy
+Prompt & images handling
+Only selected images are modified; prompt text not logged in plain text beyond policy
+Wireframe:
+Flow Diagram:
+Library (Grid) and Library → Image Detail (Enhanced Versions)
+User flow
+Library (Grid) shows history of originals/enhanced outputs with score badge, date, and Share/Delete icons on each tile.
+Top filters toggle By Score or By Date ordering.
+Tapping a tile opens Image Detail.
+Image Detail lists all versions for that image (each with Social Score, Score Details dropdown, and Share/Delete).
+User can select one or many versions and use Add Prompt for Further Edit to open a prompt field, submit, and generate prompted version(s); the list refreshes with new scores.
+Back returns to Library; bottom nav goes to Home / Subscription / Profile.
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+LB-F1
+Logged in with history
+Open Library
+Grid loads with tiles, scores, dates, Share/Delete icons
+LB-F2
+—
+Toggle By Score
+Grid sorts by score (DESC default unless specified)
+LB-F3
+—
+Toggle By Date
+Grid sorts by date (DESC newest first)
+LB-F4
+—
+Tap a tile
+Navigates to Image Detail
+LB-F5
+Grid tile
+Tap Share on a tile
+Opens system share sheet for that image
+LB-F6
+Grid tile
+Tap Delete on a tile
+Shows confirm dialog
+LB-F7
+Confirm dialog
+Choose Yes
+Image removed from grid (per retention rules)
+LB-F8
+Confirm dialog
+Choose No
+No deletion; remain on grid
+LB-F9
+Image Detail open
+Verify cards
+Each version shows preview, Social Score, Score Details dropdown, Share and Delete
+LB-F10
+Detail
+Tap Score Details on a card
+Sub-scores expand; tap again collapses
+LB-F11
+Detail
+Select one or multiple cards
+Visible selection state; count correct
+LB-F12
+Detail
+Tap Share icon on a card
+System share sheet opens for that version
+LB-F13
+Detail
+Tap Delete on a card
+Confirm dialog; Yes removes that version from list
+LB-F14
+Detail
+Tap Add Prompt for Further Edit
+Prompt field expands
+LB-F15
+Detail (1 selected)
+Enter prompt → Submit
+New prompted version generated for that selected card; appears with updated score
+LB-F16
+Detail (many selected)
+Enter prompt → Submit
+Prompt applied to all selected; each shows new version/score
+LB-F17
+Detail
+Clear/cancel prompt
+Field collapses; list/selection preserved
+LB-F18
+Navigation
+Back from Detail
+Returns to Library with prior scroll/filters intact
+LB-F19
+Error path
+Network lost, tap Share
+Graceful error or OS fallback; no crash
+LB-F20
+Error path
+Network lost, try Delete/Submit prompt
+Friendly error; state intact; no duplicates
+LB-F21
+Debounce
+Double-tap Delete/Submit quickly
+Single action; no duplicate deletions/versions
+Non-functional QA tests
+Test ID
+Area
+Steps/Scope
+Expected Result
+LB-NF1
+Performance
+Load Library with typical history size
+First interactive within target; smooth scroll
+LB-NF2
+Performance
+Enter Detail with 4–5 versions
+Cards render quickly; no jank
+LB-NF3
+Stability
+Rapid filter toggling and fast tile taps
+No crashes; correct screen transitions
+LB-NF4
+Accessibility
+Screen reader order/labels
+Tiles read with image name/date/score; controls labeled “Share”, “Delete”
+LB-NF5
+Accessibility
+Touch targets
+Tiles/icons/buttons ≥ 44×44 pt
+LB-NF6
+Contrast
+Light/Dark modes
+Scores, icons, and text meet WCAG AA
+LB-NF7
+Data integrity
+Sort stability
+Repeated toggles yield consistent ordering
+LB-NF8
+Resilience
+Rotate / background / resume
+Grid/selection/prompt text preserved
+LB-NF9
+Analytics (if enabled)
+Screen views & actions
+screen_view:library, item_open, share, delete, prompt_submit de-duplicated
+LB-NF10
+Privacy
+Deletion behavior
+Deleted items disappear from user Library while admin retention follows policy
+Wireframe:
+Flow Digram:
+Subscription & Billing
+User flow
+Navigation
+Users can navigate between sections using the bottom navigation bar, with options like Home, Gallery, Library, and Profile.
+The "Subscription" tab is active, indicating that users are currently viewing subscription-related content.
+There's also a "One-Time Purchase" option for users who want to buy tokens directly, without subscribing.
+Subscription Plans
+Users are presented with three subscription plans (Starter, Pro, and Expert).
+Each plan shows the number of tokens it provides (e.g., 5000 Tokens, 15000 Tokens, 40000 Tokens).
+Each plan has a price per month or year (e.g., $4.99/month, $12.99/month, $29.99/month).
+The plans display sale tags (e.g., SALE 50%, SALE 20%, SALE 25%) to indicate special pricing or discounts.
+CTA (Call to Action): The "Upgrade" button at the bottom allows users to proceed with their desired plan.
+Sales/Discount Offers
+Some plans are shown with discounts (e.g., 50% off the monthly Starter plan, 20% off the Pro annual plan, etc.), which can encourage users to select those plans.
+Token Count Display
+A small token balance of 1855 is visible at the top-right corner of the page, showing the current token balance. This is a persistent element across the app and always visible to the user.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+SB-F1
+Authenticated
+Open Subscription
+Plans render; current plan is highlighted; prices/discounts visible
+SB-F2
+Admin has configured discount
+Verify Annual card text
+Discount text reflects admin setting (e.g., “25% Off”)
+SB-F3
+User on Monthly
+Check Upgrade button
+Upgrade is visible and enabled
+SB-F4
+User on Annual / best plan
+Check Upgrade button
+Upgrade is hidden (or disabled)
+SB-F5
+On Monthly
+Tap Upgrade
+Confirmation/payment → on success, plan switches to Annual and UI updates (highlight, price, next renewal)
+SB-F6
+On Monthly
+Cancel during Upgrade
+No change to plan; remain on screen
+SB-F7
+Any plan
+Tap Cancel Subscription
+Confirmation modal explains no refunds + shows term end + notes data deletion window
+SB-F8
+Cancel flow
+Confirm cancellation
+Plan status becomes Cancelled (at period end); UI shows end date and data deletion timing
+SB-F9
+Cancelled state
+Re-subscribe before deletion deadline
+Data remains; plan returns to Active and UI updates
+SB-F10
+Cancelled state
+Reach term end without re-subscribing
+App blocks access to features until a plan is purchased; data deletion countdown continues
+SB-F11
+After term end
+Pass the admin-configured deletion window
+User images are deleted per policy; Library shows empty/updated state
+SB-F12
+Bottom nav
+Tap Home / Library / Profile
+Navigates correctly from Subscription
+SB-F13
+Error path
+Network failure during Upgrade/Cancel
+Clear error shown; no partial state; user stays on page
+SB-F14
+Debounce
+Rapid double-tap Upgrade / Cancel
+Single request; no duplicate charges/state flips
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+SB-NF1
+Performance
+Open Subscription
+First interactive within target on supported devices
+SB-NF2
+Performance
+Complete Upgrade flow
+Returns success UI without jank/spinner hang
+SB-NF3
+Stability
+Rotate / background / resume mid-flow
+No crash; chosen plan state preserved
+SB-NF4
+Accessibility
+Screen reader traversal
+Order: Title → Monthly card → Annual card/discount → Upgrade → Cancel; labels announced
+SB-NF5
+Accessibility
+Touch targets
+Buttons/cards ≥ 44×44 pt
+SB-NF6
+Contrast
+Light/Dark modes
+Pricing, discount, and buttons meet WCAG AA
+SB-NF7
+Privacy
+Cancellation messages
+Messaging avoids exposing sensitive info; only policy/dates shown
+SB-NF8
+Data integrity
+Retention job
+Images purge exactly per admin retention setting; events logged
+SB-NF9
+Analytics (if enabled)
+Screen views & actions
+screen_view:subscription, upgrade_attempt/success, cancel_attempt/confirm de-duplicated
+Wireframe:
+Flow Diagram:
+Settings (Profile & Security)
+User flow
+Settings Main (left)
+Edit Full Name and Email.
+Check the Terms of Service & Privacy Policy consent box (present here for acknowledgement when updating details).
+Tap Save → validate inputs → persist profile changes.
+Change Password opens the password screen.
+Disable Profile flags the account as disabled (login credentials are retained; access blocked until re-enabled per policy).
+Logout ends session and returns to Welcome/Login.
+Change Password (right)
+Enter New Password and Confirm Password.
+Tap Save → validate (match & policy) → update password (and, per spec, send verification email if required) → return to Settings.
+Buttons allow navigation back to Settings or Logout.
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+ST-F1
+Authenticated
+Open Settings
+Full Name, Email, ToS checkbox, Save, Change Password, Disable Profile, Logout are visible
+ST-F2
+—
+Edit Name/Email → leave ToS unchecked → tap Save
+ToS/Privacy consent required message; no submit
+ST-F3
+—
+Enter invalid email format → tap Save
+Inline email validation error
+ST-F4
+—
+Valid Name & Email + ToS checked → tap Save
+Profile updates persisted; confirmation toast/message
+ST-F5
+—
+Tap Change Password
+Navigates to Change Password screen
+ST-F6
+On Change Password
+Leave fields empty → tap Save
+Required-field errors
+ST-F7
+On Change Password
+Enter mismatched passwords → tap Save
+Mismatch error; remain on screen
+ST-F8
+On Change Password
+Enter policy-compliant, matching passwords → tap Save
+Password updated (and verification email if required); returns to Settings
+ST-F9
+—
+Tap Disable Profile
+Confirm dialog shown (explains effect: account disabled, login retained)
+ST-F10
+Confirm disable
+Choose Yes
+Profile becomes disabled; subsequent app access restricted per policy
+ST-F11
+Confirm disable
+Choose No
+No change; stay on Settings
+ST-F12
+—
+Tap Logout
+Session ends; user returned to Welcome/Login
+ST-F13
+Keyboard submit
+In Email field press Done/Enter
+Does not crash; either moves focus or triggers Save per platform pattern
+ST-F14
+Navigation
+Use bottom nav while on Settings
+Navigates to Home/Library/Subscription as expected
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+ST-NF1
+Performance
+Open Settings; tap Save with valid data
+Screen responsive; update confirms within target time
+ST-NF2
+Accessibility
+Screen reader traversal
+Title → Name → Email → ToS → Save → Change Password → Disable Profile → Logout; controls labeled
+ST-NF3
+Accessibility
+Touch targets
+Buttons/checkbox ≥ 44×44 pt
+ST-NF4
+Contrast
+Light/Dark modes
+Text/controls meet WCAG AA
+ST-NF5
+Stability
+Rotate / background / resume with unsaved edits
+No crash; typed values preserved
+ST-NF6
+Security/Privacy
+Change Password
+Password fields masked; values not logged; verification email flow doesn’t leak info
+ST-NF7
+Debounce
+Rapid taps on Save/Disable/Logout
+Single request per action; no double navigation
+ST-NF8
+Data integrity
+Disable → re-login attempt
+Access blocked appropriately until re-enabled per policy
+Wireframe:
+Flow Diagram:
+Admin Login (Web)
+User flow
+Admin navigates to the web URL and sees Email, Password, Remember Me, and Login.
+Admin enters credentials → Validate:
+Success:
+If 2FA is enabled (from Admin profile), prompt for second factor → on success, go to Admin Dashboard.
+If 2FA is not enabled, go directly to Admin Dashboard.
+If Remember Me is checked, persist session per policy.
+Failure: show inline error and stay on page.
+Per scope, no “Forgot Password” for Admin unless later enabled.
+Functional QA tests 
+Test ID
+Precondition
+Steps
+Expected Result
+AWL-F1
+Admin site reachable
+Load URL
+Admin Login page renders (Email, Password, Remember Me, Login)
+AWL-F2
+—
+Leave fields empty → click Login
+Required-field errors; no request sent
+AWL-F3
+—
+Enter invalid email format → Login
+Client validation blocks; format error
+AWL-F4
+—
+Valid email + wrong password → Login
+Inline auth error; remain on page
+AWL-F5
+2FA disabled
+Valid credentials → Login
+Redirect to Admin Dashboard
+AWL-F6
+2FA enabled
+Valid credentials → Login
+2FA challenge screen shown
+AWL-F7
+2FA challenge
+Enter wrong code → submit
+Inline 2FA error; remain on challenge
+AWL-F8
+2FA challenge
+Enter correct code → submit
+Redirect to Admin Dashboard
+AWL-F9
+Remember Me checked
+Login success
+Session persists per policy after browser restart
+AWL-F10
+Remember Me unchecked
+Login success
+No persistent session; new visit requires login
+AWL-F11
+Security policy
+Confirm Forgot Password is absent
+No link/button present (by design)
+AWL-F12
+Navigation
+Browser Back from Dashboard
+Returns to Login; protected routes require re-auth (no cache leak)
+AWL-F13
+Abuse resistance
+Double-click Login rapidly
+Single request; no duplicate submissions
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+AWL-NF1
+Performance
+Measure time to first interactive
+≤ target on supported browsers
+AWL-NF2
+Performance
+Successful login redirect
+Dashboard loads within target
+AWL-NF3
+Accessibility
+Keyboard-only nav
+Tabbing order: Email → Password → Remember Me → Login; space toggles checkbox; Enter submits
+AWL-NF4
+Accessibility
+Screen reader
+Fields and checkbox have proper labels/roles; error messages are announced
+AWL-NF5
+Security
+Transport
+Login posts over HTTPS; no mixed content
+AWL-NF6
+Security
+Rate limit
+Repeated failed logins are throttled/locked per policy
+AWL-NF7
+Privacy
+Password handling
+Field masked; never logged; no autocomplete if policy requires
+AWL-NF8
+Stability
+Network loss on submit
+Graceful error; no page crash
+AWL-NF9
+Compatibility
+Cross-browser
+Works on latest Chrome/Edge/Firefox/Safari
+AWL-NF10
+Session
+Logout + back-button
+Protected pages do not render from cache; redirected to Login
+Wireframe:
+Flow diagram
+Admin Dashboard (Web)
+user flow
+After Admin Login, the user lands on Dashboard.
+A collapsible left sidebar provides navigation: Dashboard, Images Matched, Subscriber Page, Admin Profile.
+The Information Overview shows four cards populated from server data at load:
+Total User
+Active Subscribers
+Revenue
+Avg. Image Score
+Recent Activity table lists users with columns: User, Plan, Images Scored, Avg. Image Score, Last Active.
+Admin can switch sections using the sidebar; Dashboard can be revisited at any time.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+AD-F1
+Authenticated as admin
+Open Dashboard URL
+Sidebar visible (Dashboard, Images Matched, Subscriber Page, Admin Profile). Four KPI cards render. Recent Activity table renders with expected columns
+AD-F2
+Fresh load
+Compare card values with backend API/DB snapshots
+Total User, Active Subscribers, Revenue, Avg. Image Score match server-calculated values
+AD-F3
+Data change occurs server-side
+Refresh page
+KPI cards and table reflect latest values after reload
+AD-F4
+Sidebar
+Click Images Matched
+Navigates to Images Matched page
+AD-F5
+Sidebar
+Click Subscriber Page
+Navigates to Subscriber page
+AD-F6
+Sidebar
+Click Admin Profile
+Navigates to Admin Profile page
+AD-F7
+Sidebar collapse
+Toggle collapse control
+Sidebar collapses/expands without layout break; active item remains highlighted
+AD-F8
+Table presence
+Verify table columns
+Columns: User, Plan, Images Scored, Avg. Image Score, Last Active
+AD-F9
+Table content
+Scan a few rows
+Values displayed and aligned; dates/times present for Last Active
+AD-F10
+Authorization
+Try to access Dashboard without session (new tab/incognito)
+Redirects to Admin Login (protected route)
+AD-F11
+Error path
+Simulate network/API failure on load
+Friendly error/empty states for cards and table; no crash
+AD-F12
+Currency display
+Inspect Revenue card
+Amount shows currency symbol and thousands separators consistent with system setting
+AD-F13
+Metrics math
+Validate Avg. Image Score
+Computed as average of image scores (0–100) across dataset used for the dashboard
+AD-F14
+Navigation back
+From other sections click Dashboard
+Returns to Dashboard; cards and table re-render
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+AD-NF1
+Performance
+First load of Dashboard
+First interactive and card paint within target on supported browsers
+AD-NF2
+Performance
+Refresh with typical data size
+Table renders smoothly; no long blocking
+AD-NF3
+Accessibility
+Keyboard-only navigation
+Sidebar items reachable; table headers/rows focusable; landmarks/roles set
+AD-NF4
+Accessibility
+Screen reader
+KPI cards have accessible names/values; table headers announced; row/column associations conveyed
+AD-NF5
+Responsiveness
+Resize browser / small laptop widths
+Layout remains usable; sidebar collapse aids smaller widths
+AD-NF6
+Stability
+Rapid section switching via sidebar
+No crashes; state isolation between sections
+AD-NF7
+Security
+Transport & cache
+HTTPS enforced; authenticated pages not cached for unauth users
+AD-NF8
+Privacy
+Data exposure
+Dashboard shows only intended admin data; PII limited to table rows as designed
+AD-NF9
+Compatibility
+Cross-browser
+Chrome/Edge/Firefox/Safari latest – consistent rendering and behavior
+Wireframe:
+Flow Diagram:
+Admin → Images Matched
+User flow
+From Admin Dashboard, the admin opens Images Matched.
+Search bar allows filtering by User, Plan, and Avg scored; clicking Search refreshes the Overview table.
+Each row in Overview shows: User, Plan, Images Scored, Avg. Image Score, Last Active, and Action icons:
+View → opens the Detail View for that user/session with the uploaded image and all enhanced images marked Passed/Failed with their scores (passed = user accepted; failed = user discarded).
+Delete → confirmation to delete that user’s images/data (per earlier requirement for admin-side deletion).
+Data Self-deletion setting → opens a modal to configure the retention window (Months/Days). Save updates policy; Cancel closes without changes.
+Export → downloads the current dataset (respecting filters) for offline analysis.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+IM-F1
+Authenticated admin
+Navigate to Images Matched
+Search inputs (User, Plan, Avg scored), Search button, Data Self-deletion setting, Export, and Overview table are visible
+IM-F2
+—
+Leave filters blank → Search
+Table loads with default/all results
+IM-F3
+—
+Enter User filter → Search
+Table shows only rows matching the user string per backend semantics
+IM-F4
+—
+Enter Plan filter (e.g., Free/Premium/Annual) → Search
+Table shows rows for that plan
+IM-F5
+—
+Enter Avg scored value → Search
+Table reflects filter semantics (e.g., exact/threshold as implemented); results consistent with API
+IM-F6
+Results shown
+Verify table columns
+Columns: User, Plan, Images Scored, Avg. Image Score, Last Active, Action
+IM-F7
+Row present
+Click View icon
+Navigate to Detail View for that row
+IM-F8
+On Detail View
+Verify content
+Shows Image Uploaded and Enhanced images grid; each enhanced card has Pass/Fail tag and score
+IM-F9
+On Detail View
+Compare pass/fail with user actions
+Cards labeled Passed correspond to user-accepted outputs; Failed to discarded ones
+IM-F10
+On Detail View
+Browser Back
+Returns to Images Matched with filters/results preserved
+IM-F11
+Row present
+Click Delete icon
+Confirm dialog appears
+IM-F12
+Confirm dialog
+Choose No
+No deletion; table unchanged
+IM-F13
+Confirm dialog
+Choose Yes
+User’s images/data deleted per policy; row updates/removed accordingly
+IM-F14
+Top buttons
+Click Data Self-deletion setting
+Retention modal opens (Months/Days, Save, Cancel)
+IM-F15
+Retention modal
+Enter values → Save
+Policy updated; confirmation feedback shown
+IM-F16
+Retention modal
+Cancel
+Modal closes; no change
+IM-F17
+Top buttons
+Click Export
+File downloads successfully; filename and format as specified; data reflects current filters
+IM-F18
+Error path
+Simulate API failure on Search
+Friendly error/empty state; no crash
+IM-F19
+Error path
+API failure on Export
+Clear error; no corrupt/partial file
+IM-F20
+Authorization
+Open page without session
+Redirect to Admin Login (protected route)
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+IM-NF1
+Performance
+Load Images Matched with typical dataset
+First contentful paint and table render within target
+IM-NF2
+Performance
+Execute Search repeatedly
+Results update quickly; no UI jank
+IM-NF3
+Performance
+Export with large result set
+File generated within acceptable time; UI remains responsive
+IM-NF4
+Accessibility
+Keyboard-only
+Tab order: User → Plan → Avg scored → Search → Data Self-deletion → Export → table rows (actions reachable)
+IM-NF5
+Accessibility
+Screen reader
+Inputs labeled; KPIs/headers announced; Pass/Fail text readable
+IM-NF6
+Responsiveness
+Resize browser window
+Layout remains usable; table scrolls without breaking
+IM-NF7
+Stability
+Rapidly open/close retention modal; switch rows
+No crashes; state preserved
+IM-NF8
+Security
+Transport & auth
+HTTPS; only authenticated admins access; delete/export actions logged
+IM-NF9
+Privacy
+Export contents
+Export excludes data beyond intended columns; adheres to policy
+IM-NF10
+Data Integrity
+Retention policy
+Saved Months/Days are persisted and used by backend clean-up jobs
+Wireframe:
+Flow diagram:
+Admin → Subscribers Page (Users)
+user flow
+From the admin sidebar, the admin opens Subscribers Page (Users).
+Search across Username, Plan Type, Status → Search updates the User table.
+Table columns: User Name, Email, Plan Type, Renewal Date, Status (row dropdown to set Active/Inactive).
+Top-right actions:
+Discount → opens Add Package modal to configure Monthly/Yearly Price and Discount (admin-configurable). Save persists, Cancel closes.
+Export → downloads the currently filtered user list.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+USR-F1
+Admin logged in
+Open Subscribers Page
+Search inputs + Search, Discount, Export, and User table are visible
+USR-F2
+—
+Leave filters empty → Search
+Table loads with all users (default page)
+USR-F3
+—
+Type emily in Username → Search
+Table shows users matching the string per backend semantics
+USR-F4
+—
+Choose Plan Type = Premium → Search
+Only Premium users listed
+USR-F5
+—
+Choose Status = Active → Search
+Only Active users listed
+USR-F6
+Results loaded
+Verify table headers
+User Name, Email, Plan Type, Renewal Date, Status
+USR-F7
+Row visible
+Change Status dropdown from Active → Inactive
+Confirmation shown (or inline save); status updates and persists on refresh
+USR-F8
+Row visible
+Change Status but Cancel confirmation
+Status remains unchanged
+USR-F9
+—
+Click Discount
+Add Package modal opens (Monthly/Yearly with Price and Discount fields, Save/Cancel)
+USR-F10
+Modal open
+Leave fields empty → Save
+Required-field validation messages
+USR-F11
+Modal open
+Enter non-numeric in Price/Discount → Save
+Numeric validation error
+USR-F12
+Modal open
+Set Discount > 100 or < 0 → Save
+Out-of-range validation error
+USR-F13
+Modal open
+Enter valid Monthly/Yearly Price and Discount → Save
+New package settings saved; confirmation shown; modal closes
+USR-F14
+Modal open
+Cancel
+No changes persisted; modal closes
+USR-F15
+Any filter state
+Click Export
+A file (CSV/XLS) downloads; rows match the current filters
+USR-F16
+Navigation
+Use sidebar to go to Dashboard/Images Matched/Admin Profile
+Correct sections open; returning preserves filters where applicable
+USR-F17
+Error path
+Network/API failure on Search
+Clear error/empty state; page doesn’t crash
+USR-F18
+Error path
+Failure on Save in Discount modal
+Error toast; values remain for correction
+USR-F19
+Error path
+Failure on Export
+Error message; no corrupt/partial download
+USR-F20
+Session
+Open page in new tab without session
+Redirect to Admin Login (protected route)
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+USR-NF1
+Performance
+First load & filtered Search
+Table renders within target time; no UI jank
+USR-NF2
+Performance
+Export with large result set
+File generated within acceptable time; UI responsive
+USR-NF3
+Accessibility
+Keyboard only
+Tab order: Username → Plan Type → Status → Search → Discount → Export → table rows (row status dropdown reachable)
+USR-NF4
+Accessibility
+Screen reader
+Inputs and buttons have labels; table headers announced; dropdown status change announced
+USR-NF5
+Responsiveness
+Resize browser
+Layout remains usable; table scrolls without breaking
+USR-NF6
+Stability
+Rapid filter changes & repeated searches
+No crashes; results consistent
+USR-NF7
+Security
+Transport & auth
+HTTPS enforced; admin-only page; changes (status/discounts) are audit-logged
+USR-NF8
+Privacy
+Export content
+Export includes intended columns only; omits sensitive data beyond design
+USR-NF9
+Data integrity
+Discount settings
+Saved values persist across reloads and are reflected in mobile Subscription screen pricing
+Wireframe:
+Flow Diagram:
+Admin → Profile
+user flow
+Admin reaches Profile from the left sidebar.
+Fields: Full Name, Email (edit/persist changes).
+Account Security actions:
+Change Password opens the password-change flow (new + confirm, policy validation, update).
+Enable 2FA starts the second-factor setup (e.g., send code or scan QR). On success the account’s 2FA status becomes Enabled.
+Functional QA tests
+Test ID
+Precondition
+Steps
+Expected Result
+AP-F1
+Authenticated admin
+Open Admin Profile
+Full Name, Email, Change Password, Enable 2FA are visible
+AP-F2
+—
+Clear Name → attempt to save/persist
+Required-field error for Name
+AP-F3
+—
+Enter invalid Email format → persist
+Inline email validation error
+AP-F4
+Valid inputs
+Edit Name/Email → persist
+Values are saved; survive refresh
+AP-F5
+Click Change Password
+Leave fields empty → submit
+Required-field errors
+AP-F6
+On Change Password
+Enter mismatched New/Confirm → submit
+“Passwords do not match” error
+AP-F7
+On Change Password
+Enter weak password (violates policy) → submit
+Policy error (min length/complexity)
+AP-F8
+On Change Password
+Enter valid + matching → submit
+Password updated; success toast; returns/ready state
+AP-F9
+Click Enable 2FA
+Start setup then Cancel/Close
+2FA remains Disabled
+AP-F10
+2FA setup
+Complete verification correctly
+2FA status becomes Enabled; subsequent logins require 2FA
+AP-F11
+2FA setup
+Enter wrong verification code
+Inline error; stay in setup
+AP-F12
+Session guard
+Open Profile in new tab without auth
+Redirect to Admin Login (protected route)
+AP-F13
+Error handling
+Network loss during save/password/2FA
+Clear error shown; no partial state; page doesn’t crash
+AP-F14
+Navigation
+Switch to other sidebar items and back
+Profile values persist (no unintended loss)
+Non-functional QA tests 
+Test ID
+Area
+Steps/Scope
+Expected Result
+AP-NF1
+Performance
+Open Profile and save edits
+Within target latency; no UI jank
+AP-NF2
+Accessibility
+Keyboard-only navigation
+Fields focusable; buttons reachable; Enter submits where applicable
+AP-NF3
+Accessibility
+Screen reader
+Proper labels for Name/Email; buttons announced; errors are announced
+AP-NF4
+Security
+Transport & secrets
+HTTPS only; password/2FA inputs masked and never logged
+AP-NF5
+Stability
+Rotate/resize and background/return
+No crash; in-progress edits preserved
+AP-NF6
+Auditing
+Sensitive ops
+Password change and 2FA enable events audit-logged
+AP-NF7
+Privacy
+PII exposure
+Only Name/Email rendered; no extra PII leaked
+AP-NF8
+Compatibility
+Cross-browser
+Latest Chrome/Edge/Firefox/Safari behave identically
+Wireframe:
+Flow diagram:

@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Viral Velocity",
+    "slug": "viral-velocity",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "viralvelocity",
+    "splash": {
+      "backgroundColor": "#0f1117"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Viral Velocity needs access to your photos so you can score and enhance them.",
+        "NSCameraUsageDescription": "Viral Velocity needs camera access to capture and score new photos."
+      }
+    },
+    "android": {
+      "package": "com.viralvelocity.app",
+      "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBar": {
+        "backgroundColor": "#181b24",
+        "barStyle": "light-content"
+      },
+      "statusBar": {
+        "backgroundColor": "#0f1117",
+        "barStyle": "light-content",
+        "translucent": false
+      },
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1117",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["READ_MEDIA_IMAGES", "CAMERA"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image-picker",
+      ["expo-navigation-bar", { "enforceContrast": false }]
+    ]
+  }
+}

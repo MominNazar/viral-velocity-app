@@ -1,0 +1,26 @@
+{
+  "name": "viral-velocity-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Viral Velocity Engine REST API",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/migrate.js && node src/server.js",
+    "migrate": "node src/migrate.js",
+    "seed": "node src/seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "nodemailer": "^8.0.10",
+    "replicate": "^1.4.0",
+    "sharp": "^0.35.2"
+  }
+}
