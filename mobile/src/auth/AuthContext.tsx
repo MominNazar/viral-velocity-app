@@ -23,11 +23,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (async () => {
       const t = await token.load();
       if (t) {
-        try {
-          const r = await api<{ user: User }>('/auth/me');
-          setUser(r.user);
-        } catch {
-          await token.clear();
+        // Render free tier cold-starts slowly — retry before giving up
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            const r = await api<{ user: User }>('/auth/me');
+            setUser(r.user);
+            lastErr = null;
+            break;
+          } catch (e) {
+            lastErr = e;
+            // Only wipe session on real auth failure, not network / wake delays
+            const status = e && typeof e === 'object' && 'status' in e ? (e as { status: number }).status : 0;
+            if (status === 401 || status === 403) {
+              await token.clear();
+              lastErr = null;
+              break;
+            }
+            await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          }
+        }
+        if (lastErr) {
+          // Keep token; user can retry when backend is awake
+          console.warn('[auth] /auth/me failed after retries; keeping session token');
         }
       }
       setBooting(false);

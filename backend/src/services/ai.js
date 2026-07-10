@@ -12,7 +12,9 @@ export async function generateEnhancedVersions(sourcePath, count = 5, userPrompt
   const useReplicate = (process.env.ENHANCE_ENGINE || 'sharp').toLowerCase() === 'replicate';
   const preferAi = hasUserPrompt && useReplicate;
 
-  const tasks = Array.from({ length: n }, async (_, i) => {
+  // Sequential on free hosts — parallel Sharp OOMs / times out on Render free tier
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
     const version_number = i + 1;
     const { filePath, engine, style, notice } = await enhanceImageFile(sourcePath, {
       prompt: userPrompt,
@@ -22,7 +24,7 @@ export async function generateEnhancedVersions(sourcePath, count = 5, userPrompt
     });
     const bias = 4 + version_number * 1.5;
     const { score, subScores } = await scoreImageFile(filePath, bias);
-    return {
+    out.push({
       version_number,
       file_path: filePath,
       engine,
@@ -31,10 +33,9 @@ export async function generateEnhancedVersions(sourcePath, count = 5, userPrompt
       score,
       subScores,
       prompt: hasUserPrompt ? userPrompt.trim() : null,
-    };
-  });
-
-  return Promise.all(tasks);
+    });
+  }
+  return out;
 }
 
 /** @deprecated use generateEnhancedVersions */

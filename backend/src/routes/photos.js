@@ -287,6 +287,12 @@ router.get('/:id', requireUser, ah(async (req, res) => {
 router.post('/:id/enhance', requireUser, requireActiveAccess, ah(async (req, res) => {
   const photo = ownedPhoto(req);
   if (!photo.file_path) throw new HttpError(400, 'Photo file missing');
+  if (!fs.existsSync(photo.file_path)) {
+    throw new HttpError(
+      400,
+      'Photo file was lost after the server restarted (free hosting wipes uploads). Please re-upload the photo, then enhance again.'
+    );
+  }
   const count = Math.max(1, Math.min(5, Number(req.body?.count) || 5));
   db.prepare("DELETE FROM enhancements WHERE photo_id = ? AND state = 'pending'").run(photo.photo_id);
 

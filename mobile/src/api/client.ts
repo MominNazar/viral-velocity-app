@@ -13,7 +13,11 @@ export const credentials = {
   async loadLoginPrefs(): Promise<{ email: string; remember: boolean }> {
     const pairs = await AsyncStorage.multiGet([LAST_EMAIL_KEY, REMEMBER_PREF_KEY]);
     const map = Object.fromEntries(pairs);
-    return { email: map[LAST_EMAIL_KEY] || '', remember: map[REMEMBER_PREF_KEY] === '1' };
+    // Default Remember Me ON unless user explicitly turned it off
+    const remember = map[REMEMBER_PREF_KEY] === undefined || map[REMEMBER_PREF_KEY] === null
+      ? true
+      : map[REMEMBER_PREF_KEY] === '1';
+    return { email: map[LAST_EMAIL_KEY] || '', remember };
   },
   async saveLoginPrefs(email: string, remember: boolean) {
     await AsyncStorage.multiSet([
@@ -28,10 +32,10 @@ export const token = {
     memToken = await AsyncStorage.getItem(TOKEN_KEY);
     return memToken;
   },
-  async set(t: string, remember: boolean) {
+  async set(t: string, _remember = true) {
     memToken = t;
-    if (remember) await AsyncStorage.setItem(TOKEN_KEY, t);
-    else await AsyncStorage.removeItem(TOKEN_KEY);
+    // Always persist so closing the app does not force re-login
+    await AsyncStorage.setItem(TOKEN_KEY, t);
   },
   async clear() {
     memToken = null;
