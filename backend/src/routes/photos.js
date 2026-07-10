@@ -31,7 +31,12 @@ function serialize(photo) {
 
 function fileUrl(req, p) {
   if (!p) return null;
-  return `${req.protocol}://${req.get('host')}/uploads/${path.basename(p)}`;
+  const base =
+    process.env.PUBLIC_BASE_URL ||
+    `${req.protocol}://${req.get('host')}`;
+  // Always https for public hosts (Android Image often fails on http→https redirects)
+  const root = base.replace(/\/$/, '').replace(/^http:\/\//i, 'https://');
+  return `${root}/uploads/${path.basename(p)}`;
 }
 
 // POST /api/photos/upload  (FR-7, FR-8, FR-17 moderation, scoring)

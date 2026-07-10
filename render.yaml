@@ -18,3 +18,5 @@ services:
         generateValue: true
       - key: PORT
         value: "4000"
+      - key: PUBLIC_BASE_URL
+        value: https://viral-velocity-app.onrender.com

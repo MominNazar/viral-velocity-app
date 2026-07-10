@@ -15,6 +15,8 @@ ensureTierPricing();
 
 export function createApp() {
   const app = express();
+  // Required on Render / reverse proxies so req.protocol is https
+  app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '5mb' }));
   app.use('/uploads', express.static(config.uploadsDir));
