@@ -13,7 +13,7 @@ function getTransporter() {
       auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
     });
   } else {
-    // Dev transport: serialize the message instead of sending.
+    // Dev / no-SMTP: serialize only — message is also printed below.
     transporter = nodemailer.createTransport({ jsonTransport: true });
   }
   return transporter;
@@ -21,15 +21,29 @@ function getTransporter() {
 
 export async function sendMail({ to, subject, text, html }) {
   const t = getTransporter();
-  const info = await t.sendMail({ from: config.smtp.from, to, subject, text, html });
-  if (!config.smtp.host) {
-    console.log('\n[email] ----------------------------------------');
+  try {
+    const info = await t.sendMail({ from: config.smtp.from, to, subject, text, html });
+    if (!config.smtp.host) {
+      console.log('\n[email] ----------------------------------------');
+      console.log(`[email] To: ${to}`);
+      console.log(`[email] Subject: ${subject}`);
+      console.log(`[email] ${text}`);
+      console.log('[email] (No SMTP configured — check Render Logs for OTP codes)');
+      console.log('[email] ----------------------------------------\n');
+    } else {
+      console.log(`[email] Sent to ${to}: ${subject}`);
+    }
+    return info;
+  } catch (err) {
+    // Never block password-reset testing if SMTP misconfigured — still print body.
+    console.error('[email] Send failed:', err?.message || err);
+    console.log('\n[email] FALLBACK (SMTP failed) --------------------');
     console.log(`[email] To: ${to}`);
     console.log(`[email] Subject: ${subject}`);
     console.log(`[email] ${text}`);
     console.log('[email] ----------------------------------------\n');
+    throw err;
   }
-  return info;
 }
 
 export const templates = {
