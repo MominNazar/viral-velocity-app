@@ -1,4 +1,8 @@
-# Render Blueprint — API + optional admin (or deploy admin on Vercel)
+# Render Blueprint — API + admin
+# IMPORTANT: Free web services have an EPHEMERAL disk — data resets when the
+# instance sleeps. For durable data either:
+#   A) Attach a persistent disk (Starter plan+) with DATA_DIR=/var/data
+#   B) Set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (free Upstash Redis)
 services:
   - type: web
     name: viral-velocity-api
@@ -19,6 +23,10 @@ services:
         value: "4000"
       - key: PUBLIC_BASE_URL
         value: https://viral-velocity-app.onrender.com
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
 
   - type: web
     name: viral-velocity-admin

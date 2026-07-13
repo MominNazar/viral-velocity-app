@@ -12,6 +12,8 @@ import { scoreImageFile } from '../services/imageScore.js';
 import { moderate } from '../services/moderation.js';
 import { HttpError } from '../lib/validate.js';
 import { audit } from '../lib/audit.js';
+import { storeFileBlob } from '../lib/files.js';
+import { backupDatabase } from '../lib/persist.js';
 
 const router = Router();
 
@@ -26,7 +28,9 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { files: 5, fileSize: 15 * 1024 * 1024 } });
 
 function serialize(photo) {
-  return { ...photo, sub_scores: photo.sub_scores ? JSON.parse(photo.sub_scores) : null };
+  if (!photo) return photo;
+  const { file_blob, ...rest } = photo;
+  return { ...rest, sub_scores: rest.sub_scores ? JSON.parse(rest.sub_scores) : null };
 }
 
 function fileUrl(req, p) {
@@ -79,6 +83,7 @@ router.post(
       const { score, subScores } = await scoreImageFile(file.path);
       const info = insert.run(req.user.user_id, batchId, file.path, score, JSON.stringify(subScores), 'clean');
       scoredCount += 1;
+      storeFileBlob('photos', 'photo_id', info.lastInsertRowid, file.path);
       const photo = db.prepare('SELECT * FROM photos WHERE photo_id = ?').get(info.lastInsertRowid);
       results.push({ ...serialize(photo), url: fileUrl(req, photo.file_path) });
     }
@@ -89,6 +94,7 @@ router.post(
     }
 
     const blocked = results.filter((r) => r.moderation === 'blocked');
+    backupDatabase(db).catch(() => {});
     res.status(201).json({
       batchId,
       photos: results.filter((r) => r.photo_id),
@@ -210,11 +216,16 @@ async function createPromptedVersions(req, photo, count, prompt, sourcePath = ph
       JSON.stringify(v.subScores),
       prompt.trim(),
     );
+    storeFileBlob('enhancements', 'enhancement_id', info.lastInsertRowid, v.file_path);
     created.push(info.lastInsertRowid);
   }
+  backupDatabase(db).catch(() => {});
   const enhancements = db.prepare(`SELECT * FROM enhancements WHERE enhancement_id IN (${created.map(() => '?').join(',')})`)
     .all(...created)
-    .map((e) => ({ ...e, sub_scores: JSON.parse(e.sub_scores), url: fileUrl(req, e.file_path) }));
+    .map((e) => {
+      const { file_blob, ...rest } = e;
+      return { ...rest, sub_scores: JSON.parse(rest.sub_scores), url: fileUrl(req, rest.file_path) };
+    });
   return { enhancements, engine, style, notice };
 }
 
@@ -319,12 +330,17 @@ router.post('/:id/enhance', requireUser, requireActiveAccess, ah(async (req, res
       v.score,
       JSON.stringify(v.subScores),
     );
+    storeFileBlob('enhancements', 'enhancement_id', info.lastInsertRowid, v.file_path);
     created.push(info.lastInsertRowid);
   }
   db.prepare("UPDATE photos SET status = 'Enhanced' WHERE photo_id = ?").run(photo.photo_id);
+  backupDatabase(db).catch(() => {});
   const enh = db.prepare(`SELECT * FROM enhancements WHERE enhancement_id IN (${created.map(() => '?').join(',')})`)
     .all(...created)
-    .map((e) => ({ ...e, sub_scores: JSON.parse(e.sub_scores), url: fileUrl(req, e.file_path) }));
+    .map((e) => {
+      const { file_blob, ...rest } = e;
+      return { ...rest, sub_scores: JSON.parse(rest.sub_scores), url: fileUrl(req, rest.file_path) };
+    });
   res.status(201).json({ enhancements: enh });
 }));
 

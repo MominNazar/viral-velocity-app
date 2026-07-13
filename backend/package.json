@@ -7,7 +7,7 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
-    "start": "node src/migrate.js && node src/seed.js && node src/server.js",
+    "start": "node src/boot.js",
     "migrate": "node src/migrate.js",
     "seed": "node src/seed.js"
   },

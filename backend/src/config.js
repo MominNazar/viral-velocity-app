@@ -7,12 +7,16 @@ const root = path.resolve(__dirname, '..');
 
 const num = (v, d) => (v === undefined || v === '' ? d : Number(v));
 
+// Prefer DATA_DIR (Render persistent disk mounts here, e.g. /var/data)
+const dataDir = process.env.DATA_DIR || path.join(root, 'data');
+const uploadsDir = process.env.UPLOADS_DIR || path.join(dataDir, 'uploads');
+
 export const config = {
   root,
   port: num(process.env.PORT, 4000),
-  dataDir: path.join(root, 'data'),
-  uploadsDir: path.join(root, 'uploads'),
-  dbFile: path.join(root, 'data', 'viral_velocity.sqlite'),
+  dataDir,
+  uploadsDir,
+  dbFile: path.join(dataDir, 'viral_velocity.sqlite'),
   migrationsDir: path.join(root, 'migrations'),
 
   jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-me',

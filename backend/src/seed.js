@@ -1,13 +1,14 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { db } from './db.js';
 import { config } from './config.js';
 import { ensureDefaults } from './lib/settings.js';
 import { hashPassword } from './lib/tokens.js';
 import { scorePhoto } from './services/imageScore.js';
 
-async function seed() {
+export async function runSeed({ close = true } = {}) {
   ensureDefaults();
 
-  // --- Default Super Admin ---
   const adminEmail = 'admin@viralvelocity.app';
   const adminPw = 'Admin123';
   if (!db.prepare('SELECT 1 FROM admins WHERE email = ?').get(adminEmail)) {
@@ -17,7 +18,6 @@ async function seed() {
     console.log(`Seeded admin: ${adminEmail} / ${adminPw}`);
   }
 
-  // --- Demo users with scored photos ---
   const demoUsers = [
     { name: 'Emily Carter', email: 'emily@example.com', plan: 'Monthly', status: 'Active' },
     { name: 'James Lee', email: 'james@example.com', plan: 'Annual', status: 'Active' },
@@ -40,23 +40,22 @@ async function seed() {
        VALUES (?, ?, ?, ?, 'Active')`
     ).run(userId, u.plan === 'Free' ? 'Free Trial' : u.plan, now.slice(0, 10), end.toISOString().slice(0, 10));
 
-    // A few scored photos + enhancements
     for (let i = 0; i < 3; i += 1) {
-      const seed = `${u.email}-photo-${i}`;
-      const { score, subScores } = scorePhoto(seed);
+      const seedKey = `${u.email}-photo-${i}`;
+      const { score, subScores } = scorePhoto(seedKey);
       const p = db.prepare(
         `INSERT INTO photos (user_id, batch_id, file_path, score, sub_scores, status)
          VALUES (?, ?, ?, ?, ?, 'Original')`
       ).run(userId, `seed-${i}`, null, score, JSON.stringify(subScores));
       const photoId = p.lastInsertRowid;
       for (let idx = 0; idx < 3; idx += 1) {
-        const vSeed = `${seed}::v${idx + 1}`;
+        const vSeed = `${seedKey}::v${idx + 1}`;
         const bias = 6 + (idx + 1) * 2;
-        const { score, subScores } = scorePhoto(vSeed, bias);
+        const scored = scorePhoto(vSeed, bias);
         db.prepare(
           `INSERT INTO enhancements (photo_id, version_number, score, sub_scores, state)
            VALUES (?, ?, ?, ?, ?)`
-        ).run(photoId, idx + 1, score, JSON.stringify(subScores), idx === 0 ? 'saved' : 'discarded');
+        ).run(photoId, idx + 1, scored.score, JSON.stringify(scored.subScores), idx === 0 ? 'saved' : 'discarded');
       }
     }
     console.log(`Seeded user: ${u.email} / Demo1234`);
@@ -64,7 +63,9 @@ async function seed() {
 
   console.log('\nSeed complete.');
   console.log(`DB: ${config.dbFile}`);
-  db.close();
+  if (close) db.close();
 }
 
-seed();
+const isMain =
+  process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isMain) runSeed({ close: true });

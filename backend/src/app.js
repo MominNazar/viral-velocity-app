@@ -19,6 +19,15 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '5mb' }));
+  app.use('/uploads', (req, _res, next) => {
+    import('./lib/files.js')
+      .then(({ hydrateUploadFile }) => {
+        const name = path.basename(req.path);
+        if (name && name !== '/') hydrateUploadFile(name);
+      })
+      .catch(() => {})
+      .finally(() => next());
+  });
   app.use('/uploads', express.static(config.uploadsDir));
   app.use('/legal', express.static(path.join(config.root, 'public', 'legal')));
 
