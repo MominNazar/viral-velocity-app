@@ -5,6 +5,7 @@ import { config } from './config.js';
 import { ensureDefaults } from './lib/settings.js';
 import { ensureTierPricing } from './lib/pricing.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { persistStatus } from './lib/persist.js';
 import authRoutes from './routes/auth.js';
 import photoRoutes from './routes/photos.js';
 import subscriptionRoutes from './routes/subscriptions.js';
@@ -15,7 +16,6 @@ ensureTierPricing();
 
 export function createApp() {
   const app = express();
-  // Required on Render / reverse proxies so req.protocol is https
   app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '5mb' }));
@@ -31,7 +31,14 @@ export function createApp() {
   app.use('/uploads', express.static(config.uploadsDir));
   app.use('/legal', express.static(path.join(config.root, 'public', 'legal')));
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'viral-velocity', ts: Date.now() }));
+  app.get('/api/health', (_req, res) => {
+    res.json({
+      ok: true,
+      service: 'viral-velocity',
+      ts: Date.now(),
+      persist: persistStatus(),
+    });
+  });
 
   app.use('/api/auth', authRoutes);
   app.use('/api/photos', photoRoutes);
