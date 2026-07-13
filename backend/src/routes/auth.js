@@ -10,7 +10,7 @@ import {
   hashPassword, comparePassword, signUserToken,
   generateCode, hashCode, compareCode, randomToken,
 } from '../lib/tokens.js';
-import { isEmail, isStrongPassword, ageFromDob, HttpError } from '../lib/validate.js';
+import { isEmail, isDeliverableEmail, isStrongPassword, ageFromDob, HttpError } from '../lib/validate.js';
 
 const router = Router();
 
@@ -36,6 +36,7 @@ router.post('/signup', ah(async (req, res) => {
   const errors = {};
   if (!name || !name.trim()) errors.name = 'Full name is required';
   if (!isEmail(email)) errors.email = 'A valid email is required';
+  else if (!isDeliverableEmail(email)) errors.email = 'Use a real email address (not example.com)';
   if (!isStrongPassword(password)) errors.password = 'Password must be 8+ chars with letters and numbers';
   if (password !== confirmPassword) errors.confirmPassword = 'Passwords do not match';
   if (!acceptTos) errors.acceptTos = 'You must accept the Terms of Service and Privacy Policy';
@@ -67,9 +68,13 @@ router.post('/signup', ah(async (req, res) => {
      VALUES (?, 'Free Trial', ?, ?, 'Active')`
   ).run(userId, now.slice(0, 10), end);
 
-  // FR-3: welcome email.
+  // FR-3: welcome email (best-effort — don't block signup if mail isn't configured yet).
   const tpl = templates.welcome(name.trim());
-  await sendMail({ to: email, subject: tpl.subject, text: tpl.text });
+  try {
+    await sendMail({ to: email, subject: tpl.subject, text: tpl.text });
+  } catch (err) {
+    console.warn('[auth] Welcome email skipped:', err.message);
+  }
   db.prepare(`INSERT INTO email_tokens (user_id, token, type) VALUES (?, ?, 'welcome')`)
     .run(userId, randomToken());
 
@@ -104,9 +109,14 @@ router.post(
   ah(async (req, res) => {
     const { email } = req.body || {};
     if (!isEmail(email)) throw new HttpError(400, 'Validation failed', { email: 'A valid email is required' });
+    if (!isDeliverableEmail(email)) {
+      throw new HttpError(400, 'Validation failed', {
+        email: 'Use a real email address (not example.com / test addresses).',
+      });
+    }
 
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
-    // Always respond the same way (FP-NF6: don't reveal account existence).
+    // Always respond the same way when account missing (don't reveal existence).
     if (user) {
       const code = generateCode();
       const code_hash = await hashCode(code);
