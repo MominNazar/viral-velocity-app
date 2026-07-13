@@ -1,4 +1,4 @@
-import { restoreDatabaseIfNeeded, startBackupScheduler, backupDatabase, enableBackups } from './lib/persist.js';
+import { restoreDatabaseIfNeeded, startBackupScheduler, backupDatabase, enableBackups, restoreUploadFiles } from './lib/persist.js';
 import { hydrateAllMissingFiles } from './lib/files.js';
 
 async function run() {
@@ -12,12 +12,12 @@ async function run() {
   await runSeed({ close: false });
 
   const { db } = await import('./db.js');
-  // Prefer DELETE journal when using remote snapshots (single-file backup)
   try {
     db.pragma('journal_mode = DELETE');
   } catch {
     /* ignore */
   }
+  await restoreUploadFiles();
   hydrateAllMissingFiles();
   enableBackups();
   startBackupScheduler(db);

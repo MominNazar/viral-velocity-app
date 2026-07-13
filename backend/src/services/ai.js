@@ -6,8 +6,9 @@ export { scorePhoto, SUB_SCORE_KEYS };
 /**
  * Generate enhanced image files (Sharp / optional Replicate) with Sharp-based scores.
  */
-export async function generateEnhancedVersions(sourcePath, count = 5, userPrompt = '') {
-  const n = Math.max(1, Math.min(5, count));
+export async function generateEnhancedVersions(sourcePath, count = 3, userPrompt = '') {
+  // Free Render ~512MB — default fewer variants
+  const n = Math.max(1, Math.min(3, count));
   const hasUserPrompt = Boolean(userPrompt?.trim());
   const useReplicate = (process.env.ENHANCE_ENGINE || 'sharp').toLowerCase() === 'replicate';
   const preferAi = hasUserPrompt && useReplicate;

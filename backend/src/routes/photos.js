@@ -12,7 +12,7 @@ import { scoreImageFile } from '../services/imageScore.js';
 import { moderate } from '../services/moderation.js';
 import { HttpError } from '../lib/validate.js';
 import { audit } from '../lib/audit.js';
-import { storeFileBlob } from '../lib/files.js';
+import { storeFileBlob, normalizeUploadFile, persistUpload } from '../lib/files.js';
 import { backupDatabase } from '../lib/persist.js';
 
 const router = Router();
@@ -80,10 +80,13 @@ router.post(
         results.push({ originalName: file.originalname, moderation: 'blocked', risk: mod.risk });
         continue;
       }
+      const normalizedPath = await normalizeUploadFile(file.path);
+      file.path = normalizedPath;
       const { score, subScores } = await scoreImageFile(file.path);
       const info = insert.run(req.user.user_id, batchId, file.path, score, JSON.stringify(subScores), 'clean');
       scoredCount += 1;
       storeFileBlob('photos', 'photo_id', info.lastInsertRowid, file.path);
+      await persistUpload(file.path);
       const photo = db.prepare('SELECT * FROM photos WHERE photo_id = ?').get(info.lastInsertRowid);
       results.push({ ...serialize(photo), url: fileUrl(req, photo.file_path) });
     }
@@ -94,7 +97,7 @@ router.post(
     }
 
     const blocked = results.filter((r) => r.moderation === 'blocked');
-    backupDatabase(db).catch(() => {});
+    await backupDatabase(db, { force: true });
     res.status(201).json({
       batchId,
       photos: results.filter((r) => r.photo_id),
@@ -217,6 +220,7 @@ async function createPromptedVersions(req, photo, count, prompt, sourcePath = ph
       prompt.trim(),
     );
     storeFileBlob('enhancements', 'enhancement_id', info.lastInsertRowid, v.file_path);
+    await persistUpload(v.file_path);
     created.push(info.lastInsertRowid);
   }
   backupDatabase(db).catch(() => {});
@@ -304,7 +308,7 @@ router.post('/:id/enhance', requireUser, requireActiveAccess, ah(async (req, res
       'Photo file was lost after the server restarted (free hosting wipes uploads). Please re-upload the photo, then enhance again.'
     );
   }
-  const count = Math.max(1, Math.min(5, Number(req.body?.count) || 5));
+  const count = Math.max(1, Math.min(3, Number(req.body?.count) || 3));
   db.prepare("DELETE FROM enhancements WHERE photo_id = ? AND state = 'pending'").run(photo.photo_id);
 
   let versions;
@@ -331,10 +335,11 @@ router.post('/:id/enhance', requireUser, requireActiveAccess, ah(async (req, res
       JSON.stringify(v.subScores),
     );
     storeFileBlob('enhancements', 'enhancement_id', info.lastInsertRowid, v.file_path);
+    await persistUpload(v.file_path);
     created.push(info.lastInsertRowid);
   }
   db.prepare("UPDATE photos SET status = 'Enhanced' WHERE photo_id = ?").run(photo.photo_id);
-  backupDatabase(db).catch(() => {});
+  await backupDatabase(db, { force: true });
   const enh = db.prepare(`SELECT * FROM enhancements WHERE enhancement_id IN (${created.map(() => '?').join(',')})`)
     .all(...created)
     .map((e) => {

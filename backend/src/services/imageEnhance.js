@@ -4,6 +4,15 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { config } from '../config.js';
 
+const MAX_EDGE = Number(process.env.MAX_IMAGE_EDGE || 1024);
+
+try {
+  sharp.cache(false);
+  sharp.concurrency(1);
+} catch {
+  /* ignore */
+}
+
 const DEFAULT_VARIANT_PROMPTS = [
   'enhance for social media with balanced lighting and clarity',
   'apply warm golden hour tones',
@@ -307,7 +316,11 @@ async function enhanceWithSharp(sourcePath, { prompt, variantIndex, userPrompted
   }
 
   const dest = outPath();
-  await pipeline.jpeg({ quality: 93, mozjpeg: true }).toFile(dest);
+  // Always downscale during enhance — free Render OOMs on multi-megapixel pipelines
+  await pipeline
+    .resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85, mozjpeg: true })
+    .toFile(dest);
   return { dest, label, unsupported };
 }
 

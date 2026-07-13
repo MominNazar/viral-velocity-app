@@ -1,18 +1,23 @@
 /**
- * Persist SQLite across Render free-tier restarts via Upstash Redis REST.
- * Env: UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
+ * Persist SQLite + upload files across Render free-tier restarts via Upstash.
+ * Avoids loading huge image blobs into SQLite (that caused OOM kills).
  */
 import fs from 'node:fs';
+import path from 'node:path';
 import { config } from '../config.js';
 
 const META_KEY = 'viral_velocity_sqlite_meta';
 const CHUNK_KEY = (i) => `viral_velocity_sqlite_chunk_${i}`;
-const CHUNK = 700_000;
+const FILES_KEY = 'viral_velocity_files_index';
+const FILE_CHUNK = (name, i) => `viral_velocity_file:${name}:${i}`;
+const FILE_META = (name) => `viral_velocity_filemeta:${name}`;
+const CHUNK = 400_000; // smaller chunks = less peak RAM
 
 let lastBackupAt = null;
 let lastRestoreAt = null;
 let lastError = null;
 let backupsEnabled = false;
+let backupInFlight = false;
 
 export function persistStatus() {
   return {
@@ -59,12 +64,68 @@ async function readRemoteMeta() {
   return typeof metaRaw === 'string' ? JSON.parse(metaRaw) : metaRaw;
 }
 
-async function remoteHasSnapshot() {
+/** Backup one image file to Upstash in small chunks (low RAM). */
+export async function backupUploadFile(filePath) {
+  if (!upstashConfigured() || !filePath || !fs.existsSync(filePath)) return;
+  const name = path.basename(filePath);
   try {
-    const meta = await readRemoteMeta();
-    return Boolean(meta && meta.chunks > 0);
-  } catch {
-    return false;
+    const buf = fs.readFileSync(filePath);
+    // Skip huge originals — should already be resized on upload
+    if (buf.length > 2_500_000) {
+      console.warn(`[persist] Skip file backup ${name} (${buf.length} bytes too large)`);
+      return;
+    }
+    const b64 = buf.toString('base64');
+    const chunks = Math.ceil(b64.length / CHUNK) || 1;
+    for (let i = 0; i < chunks; i += 1) {
+      await upstash(['SET', FILE_CHUNK(name, i), b64.slice(i * CHUNK, (i + 1) * CHUNK)]);
+    }
+    await upstash(['SET', FILE_META(name), JSON.stringify({ chunks, size: buf.length })]);
+    const idx = await upstash(['GET', FILES_KEY]);
+    let list = [];
+    try {
+      list = idx?.result ? JSON.parse(idx.result) : [];
+    } catch {
+      list = [];
+    }
+    if (!list.includes(name)) {
+      list.push(name);
+      await upstash(['SET', FILES_KEY, JSON.stringify(list)]);
+    }
+  } catch (err) {
+    console.warn('[persist] file backup failed:', name, err.message);
+  }
+}
+
+export async function restoreUploadFiles() {
+  if (!upstashConfigured()) return 0;
+  fs.mkdirSync(config.uploadsDir, { recursive: true });
+  try {
+    const idx = await upstash(['GET', FILES_KEY]);
+    if (!idx?.result) return 0;
+    const list = JSON.parse(idx.result);
+    let n = 0;
+    for (const name of list) {
+      const dest = path.join(config.uploadsDir, name);
+      if (fs.existsSync(dest) && fs.statSync(dest).size > 0) continue;
+      const metaRaw = await upstash(['GET', FILE_META(name)]);
+      if (!metaRaw?.result) continue;
+      const meta = typeof metaRaw.result === 'string' ? JSON.parse(metaRaw.result) : metaRaw.result;
+      const parts = [];
+      for (let i = 0; i < meta.chunks; i += 1) {
+        const part = await upstash(['GET', FILE_CHUNK(name, i)]);
+        if (!part?.result) break;
+        parts.push(String(part.result));
+      }
+      if (parts.length !== meta.chunks) continue;
+      fs.writeFileSync(dest, Buffer.from(parts.join(''), 'base64'));
+      n += 1;
+    }
+    if (n) console.log(`[persist] Restored ${n} upload file(s) from Upstash`);
+    return n;
+  } catch (err) {
+    console.warn('[persist] restoreUploadFiles failed:', err.message);
+    return 0;
   }
 }
 
@@ -74,7 +135,7 @@ export async function restoreDatabaseIfNeeded() {
 
   if (!upstashConfigured()) {
     console.warn(
-      '[persist] UPSTASH_REDIS_REST_URL / TOKEN not set on Render. Data WILL reset when the free server sleeps.'
+      '[persist] UPSTASH_* not set. Data WILL reset when Render free tier sleeps/OOM-restarts.'
     );
     return { restored: false, reason: 'upstash_not_configured' };
   }
@@ -88,14 +149,14 @@ export async function restoreDatabaseIfNeeded() {
     console.error('[persist] Could not read remote meta:', err.message);
   }
 
-  // Prefer remote when local is missing OR remote is clearly newer/larger
   const shouldRestore =
     remoteMeta?.chunks > 0 &&
-    (!localExists || (remoteMeta.size && remoteMeta.size > fs.statSync(config.dbFile).size * 1.05));
+    (!localExists || (remoteMeta.size && localExists && remoteMeta.size > fs.statSync(config.dbFile).size * 1.05));
 
   if (!shouldRestore) {
     if (localExists) console.log(`[persist] Keeping local DB: ${config.dbFile}`);
     else console.log('[persist] No remote snapshot yet — starting fresh');
+    await restoreUploadFiles();
     return { restored: false, reason: localExists ? 'local_ok' : 'no_remote' };
   }
 
@@ -107,7 +168,6 @@ export async function restoreDatabaseIfNeeded() {
       if (!part?.result) throw new Error(`Missing chunk ${i}`);
       parts.push(String(part.result));
     }
-    // Remove stale local files before replace
     for (const suffix of ['', '-wal', '-shm']) {
       const p = `${config.dbFile}${suffix}`;
       if (fs.existsSync(p)) fs.unlinkSync(p);
@@ -115,17 +175,14 @@ export async function restoreDatabaseIfNeeded() {
     fs.writeFileSync(config.dbFile, Buffer.from(parts.join(''), 'base64'));
     lastRestoreAt = new Date().toISOString();
     lastError = null;
-    console.log(`[persist] Restored DB (${fs.statSync(config.dbFile).size} bytes, ${remoteMeta.chunks} chunks)`);
+    console.log(`[persist] Restored DB (${fs.statSync(config.dbFile).size} bytes)`);
+    await restoreUploadFiles();
     return { restored: true };
   } catch (err) {
     lastError = err.message;
     console.error('[persist] Restore failed:', err.message);
-    // If remote has data but restore failed, refuse to continue with empty DB
-    // (prevents seed+backup from wiping the remote snapshot).
-    if (!localExists && (await remoteHasSnapshot())) {
-      throw new Error(
-        `Remote backup exists but restore failed (${err.message}). Fix Upstash credentials — refusing to wipe backup with an empty DB.`
-      );
+    if (!localExists && remoteMeta?.chunks > 0) {
+      throw new Error(`Remote backup exists but restore failed (${err.message}).`);
     }
     return { restored: false, reason: 'restore_failed' };
   }
@@ -134,6 +191,8 @@ export async function restoreDatabaseIfNeeded() {
 export async function backupDatabase(db, { force = false } = {}) {
   if (!upstashConfigured()) return { ok: false, reason: 'upstash_not_configured' };
   if (!backupsEnabled && !force) return { ok: false, reason: 'backups_disabled' };
+  if (backupInFlight) return { ok: false, reason: 'in_flight' };
+  backupInFlight = true;
 
   try {
     if (db) {
@@ -146,7 +205,10 @@ export async function backupDatabase(db, { force = false } = {}) {
     if (!fs.existsSync(config.dbFile)) return { ok: false, reason: 'no_local_db' };
 
     const buf = fs.readFileSync(config.dbFile);
-    const b64 = buf.toString('base64');
+    // Keep DB backup small — no image blobs in SQLite anymore
+    if (buf.length > 4_000_000) {
+      console.warn('[persist] DB unexpectedly large; backup may be slow');
+    }
 
     let userCount = 0;
     let photoCount = 0;
@@ -159,18 +221,13 @@ export async function backupDatabase(db, { force = false } = {}) {
       /* ignore */
     }
 
-    // Never clobber a richer remote snapshot with a tiny local/seed DB
     if (!force) {
       try {
         const remote = await readRemoteMeta();
         if (remote && typeof remote.userCount === 'number') {
-          if (remote.userCount > userCount + 0 || (remote.photoCount || 0) > photoCount + 0) {
-            if (userCount <= 3 && photoCount <= 9) {
-              console.warn(
-                `[persist] Skip backup — remote has more data (users ${remote.userCount}/${userCount}, photos ${remote.photoCount}/${photoCount})`
-              );
-              return { ok: false, reason: 'remote_has_more_data' };
-            }
+          if (remote.userCount > userCount && userCount <= 3 && photoCount <= 9) {
+            console.warn('[persist] Skip backup — remote has more users (would clobber)');
+            return { ok: false, reason: 'remote_has_more_data' };
           }
         }
       } catch {
@@ -178,10 +235,10 @@ export async function backupDatabase(db, { force = false } = {}) {
       }
     }
 
+    const b64 = buf.toString('base64');
     const chunks = Math.ceil(b64.length / CHUNK) || 1;
     for (let i = 0; i < chunks; i += 1) {
-      const slice = b64.slice(i * CHUNK, (i + 1) * CHUNK);
-      await upstash(['SET', CHUNK_KEY(i), slice]);
+      await upstash(['SET', CHUNK_KEY(i), b64.slice(i * CHUNK, (i + 1) * CHUNK)]);
     }
     await upstash([
       'SET',
@@ -202,20 +259,21 @@ export async function backupDatabase(db, { force = false } = {}) {
     lastError = err.message;
     console.error('[persist] Backup failed:', err.message);
     return { ok: false, reason: err.message };
+  } finally {
+    backupInFlight = false;
   }
 }
 
 export function startBackupScheduler(db) {
   if (!upstashConfigured()) {
-    console.log('[persist] Upstash not configured — data will NOT survive Render sleep');
+    console.log('[persist] Upstash not configured — data will NOT survive Render restarts');
     return;
   }
   enableBackups();
-  const mins = Number(process.env.BACKUP_INTERVAL_MINUTES || 1);
-  const ms = Math.max(30_000, mins * 60_000);
+  // Frequent backups — OOM kills happen before 2-minute intervals
+  const ms = Math.max(20_000, Number(process.env.BACKUP_INTERVAL_MS || 20_000));
   setInterval(() => {
     backupDatabase(db).catch(() => {});
   }, ms);
-  // First backup after a short delay (let seed finish; skip-clobber protects remote)
-  setTimeout(() => backupDatabase(db).catch(() => {}), 20_000);
+  setTimeout(() => backupDatabase(db, { force: true }).catch(() => {}), 8_000);
 }

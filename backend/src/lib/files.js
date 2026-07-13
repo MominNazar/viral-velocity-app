@@ -1,51 +1,65 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
 import { config } from '../config.js';
-import { db } from '../db.js';
+import { backupUploadFile } from './persist.js';
 
-/** Save image bytes into SQLite so photos survive if the uploads folder is wiped. */
-export function storeFileBlob(table, idColumn, id, filePath) {
-  if (!filePath || !fs.existsSync(filePath)) return;
+// Cap Sharp RAM on Render free (512MB)
+try {
+  sharp.cache(false);
+  sharp.concurrency(1);
+} catch {
+  /* ignore */
+}
+
+const MAX_EDGE = Number(process.env.MAX_IMAGE_EDGE || 1024);
+
+/**
+ * Downscale + recompress uploads so enhance + backup fit in free-tier RAM.
+ * Returns the (possibly replaced) file path.
+ */
+export async function normalizeUploadFile(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return filePath;
   try {
-    const blob = fs.readFileSync(filePath);
-    db.prepare(`UPDATE ${table} SET file_blob = ? WHERE ${idColumn} = ?`).run(blob, id);
+    const dest = path.join(
+      config.uploadsDir,
+      `${path.basename(filePath, path.extname(filePath))}-n.jpg`
+    );
+    await sharp(filePath)
+      .rotate()
+      .resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toFile(dest);
+    if (dest !== filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        /* ignore */
+      }
+    }
+    return dest;
   } catch (err) {
-    console.warn('[persist] storeFileBlob failed:', err.message);
+    console.warn('[files] normalizeUploadFile failed:', err.message);
+    return filePath;
   }
 }
 
-/** Recreate a missing upload file from SQLite blob. */
+/** Persist image to Upstash (not SQLite — blobs caused OOM). */
+export async function persistUpload(filePath) {
+  await backupUploadFile(filePath);
+}
+
+/** No-op kept for call sites that previously wrote SQLite blobs. */
+export function storeFileBlob() {
+  /* intentionally disabled — caused Render OOM */
+}
+
 export function hydrateUploadFile(basename) {
   const name = path.basename(basename);
   const dest = path.join(config.uploadsDir, name);
-  if (fs.existsSync(dest)) return dest;
-
-  const row =
-    db.prepare('SELECT file_blob FROM photos WHERE file_path LIKE ? AND file_blob IS NOT NULL LIMIT 1').get(`%${name}`) ||
-    db.prepare('SELECT file_blob FROM enhancements WHERE file_path LIKE ? AND file_blob IS NOT NULL LIMIT 1').get(`%${name}`);
-
-  if (!row?.file_blob) return null;
-  fs.mkdirSync(config.uploadsDir, { recursive: true });
-  fs.writeFileSync(dest, row.file_blob);
-  return dest;
+  return fs.existsSync(dest) ? dest : null;
 }
 
-/** Restore any known photo/enhancement files that are missing on disk. */
 export function hydrateAllMissingFiles() {
-  const photos = db.prepare('SELECT photo_id, file_path, file_blob FROM photos WHERE file_blob IS NOT NULL').all();
-  const enh = db.prepare('SELECT enhancement_id, file_path, file_blob FROM enhancements WHERE file_blob IS NOT NULL').all();
-  let n = 0;
-  for (const row of [...photos, ...enh]) {
-    if (!row.file_path) continue;
-    const dest = path.join(config.uploadsDir, path.basename(row.file_path));
-    if (fs.existsSync(dest)) continue;
-    try {
-      fs.mkdirSync(config.uploadsDir, { recursive: true });
-      fs.writeFileSync(dest, row.file_blob);
-      n += 1;
-    } catch {
-      /* ignore */
-    }
-  }
-  if (n) console.log(`[persist] Restored ${n} image file(s) from database blobs`);
+  /* files restored via persist.restoreUploadFiles() */
 }
