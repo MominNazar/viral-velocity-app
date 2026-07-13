@@ -46,7 +46,20 @@ async function sendViaResend({ to, subject, text, html }) {
   return data;
 }
 
+export function emailConfigured() {
+  return Boolean(process.env.RESEND_API_KEY || config.smtp.host);
+}
+
 export async function sendMail({ to, subject, text, html }) {
+  if (!emailConfigured()) {
+    logMail(to, subject, text, 'No SMTP/Resend configured — set SMTP_* or RESEND_API_KEY on Render');
+    const err = new Error(
+      'Email is not configured on the server. Add SMTP (Gmail App Password) or RESEND_API_KEY in Render Environment.'
+    );
+    err.code = 'EMAIL_NOT_CONFIGURED';
+    throw err;
+  }
+
   const bodyHtml =
     html ||
     `<div style="font-family:sans-serif;line-height:1.5">
@@ -62,15 +75,11 @@ export async function sendMail({ to, subject, text, html }) {
 
     const t = getTransporter();
     const info = await t.sendMail({ from: config.smtp.from, to, subject, text, html: bodyHtml });
-    if (!config.smtp.host) {
-      logMail(to, subject, text, 'No SMTP/Resend configured — OTP is only in Render Logs');
-    } else {
-      console.log(`[email] Sent via SMTP to ${to}: ${subject}`);
-    }
+    console.log(`[email] Sent via SMTP to ${to}: ${subject}`);
     return info;
   } catch (err) {
     console.error('[email] Send failed:', err?.message || err);
-    logMail(to, subject, text, 'FALLBACK — SMTP/Resend failed; code printed above');
+    logMail(to, subject, text, 'FALLBACK — send failed; code printed above for debugging');
     throw err;
   }
 }

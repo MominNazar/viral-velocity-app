@@ -6,6 +6,7 @@ import { ensureDefaults } from './lib/settings.js';
 import { ensureTierPricing } from './lib/pricing.js';
 import { notFound, errorHandler } from './middleware/error.js';
 import { persistStatus } from './lib/persist.js';
+import { emailConfigured } from './services/email.js';
 import authRoutes from './routes/auth.js';
 import photoRoutes from './routes/photos.js';
 import subscriptionRoutes from './routes/subscriptions.js';
@@ -36,6 +37,7 @@ export function createApp() {
       ok: true,
       service: 'viral-velocity',
       ts: Date.now(),
+      emailConfigured: emailConfigured(),
       persist: persistStatus(),
     });
   });
