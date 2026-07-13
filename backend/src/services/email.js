@@ -1,5 +1,13 @@
 import nodemailer from 'nodemailer';
+import dns from 'node:dns';
 import { config } from '../config.js';
+
+// Prefer IPv4 — Render free often fails Gmail SMTP over IPv6 (ENETUNREACH)
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  /* older Node */
+}
 
 let transporter;
 
@@ -10,7 +18,14 @@ function getTransporter() {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: Number(config.smtp.port) === 465,
+      // Render free frequently blocks outbound :587; 465 sometimes works when 587 does not
+      requireTLS: Number(config.smtp.port) === 587,
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 20000,
+      family: 4, // force IPv4
       auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
+      tls: { servername: config.smtp.host },
     });
   } else {
     transporter = nodemailer.createTransport({ jsonTransport: true });
@@ -27,10 +42,14 @@ function logMail(to, subject, text, note) {
   console.log('[email] ----------------------------------------\n');
 }
 
-/** Prefer Resend HTTP API when RESEND_API_KEY is set; else SMTP / console. */
+export function emailConfigured() {
+  return Boolean(process.env.RESEND_API_KEY || config.smtp.host);
+}
+
+/** Resend HTTP API — works on Render free (uses HTTPS, not blocked SMTP ports). */
 async function sendViaResend({ to, subject, text, html }) {
   const key = process.env.RESEND_API_KEY;
-  const from = config.smtp.from || 'Viral Velocity <onboarding@resend.dev>';
+  const from = process.env.MAIL_FROM || config.smtp.from || 'Viral Velocity <onboarding@resend.dev>';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -46,15 +65,11 @@ async function sendViaResend({ to, subject, text, html }) {
   return data;
 }
 
-export function emailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY || config.smtp.host);
-}
-
 export async function sendMail({ to, subject, text, html }) {
   if (!emailConfigured()) {
-    logMail(to, subject, text, 'No SMTP/Resend configured — set SMTP_* or RESEND_API_KEY on Render');
+    logMail(to, subject, text, 'No RESEND_API_KEY or SMTP_* configured');
     const err = new Error(
-      'Email is not configured on the server. Add SMTP (Gmail App Password) or RESEND_API_KEY in Render Environment.'
+      'Email is not configured. On Render free tier prefer RESEND_API_KEY (HTTPS). SMTP to Gmail often times out.'
     );
     err.code = 'EMAIL_NOT_CONFIGURED';
     throw err;
@@ -66,21 +81,46 @@ export async function sendMail({ to, subject, text, html }) {
       <p>${String(text || '').replace(/\n/g, '<br/>')}</p>
     </div>`;
 
-  try {
-    if (process.env.RESEND_API_KEY) {
+  // Prefer Resend on cloud hosts — SMTP ports are often blocked
+  if (process.env.RESEND_API_KEY) {
+    try {
       const info = await sendViaResend({ to, subject, text, html: bodyHtml });
       console.log(`[email] Sent via Resend to ${to}: ${subject}`);
       return info;
+    } catch (err) {
+      console.error('[email] Resend failed:', err.message);
+      if (!config.smtp.host) {
+        logMail(to, subject, text, 'Resend failed; code printed above');
+        throw err;
+      }
+      console.warn('[email] Falling back to SMTP…');
     }
+  }
 
+  try {
     const t = getTransporter();
-    const info = await t.sendMail({ from: config.smtp.from, to, subject, text, html: bodyHtml });
+    const info = await t.sendMail({
+      from: process.env.MAIL_FROM || config.smtp.from,
+      to,
+      subject,
+      text,
+      html: bodyHtml,
+    });
     console.log(`[email] Sent via SMTP to ${to}: ${subject}`);
     return info;
   } catch (err) {
     console.error('[email] Send failed:', err?.message || err);
-    logMail(to, subject, text, 'FALLBACK — send failed; code printed above for debugging');
-    throw err;
+    logMail(
+      to,
+      subject,
+      text,
+      'SMTP failed (common on Render free). Add RESEND_API_KEY — see docs. Code printed above for debugging.'
+    );
+    const e = new Error(
+      'Could not reach the mail server. On Render free, use Resend (RESEND_API_KEY) instead of Gmail SMTP.'
+    );
+    e.code = 'EMAIL_SEND_FAILED';
+    throw e;
   }
 }
 
