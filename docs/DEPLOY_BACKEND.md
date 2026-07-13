@@ -25,50 +25,47 @@ Put that in `mobile/eas.json` → `EXPO_PUBLIC_API_BASE`, then build the APK.
 ## Option B — Render (permanent, for real testers)
 
 ### What I prepared
-- `render.yaml` — Render blueprint
+- `render.yaml` — Render blueprint (API + admin)
 - `backend` start script runs migrations automatically
 
 ### What you must do (I cannot do these)
 
-1. **GitHub**
-   - Create a repo at [github.com/new](https://github.com/new)
-   - Push this project:
-     ```powershell
-     cd C:\Users\Hassan\Downloads\Viral_Velocity_App
-     git init
-     git add .
-     git commit -m "Initial commit"
-     git branch -M main
-     git remote add origin https://github.com/YOUR_USER/viral-velocity.git
-     git push -u origin main
-     ```
+1. **GitHub** — already done: https://github.com/MominNazar/viral-velocity-app
 
-2. **Render**
-   - Sign up at [render.com](https://render.com) (free)
-   - **New → Blueprint**
-   - Connect GitHub → select your repo
-   - Render reads `render.yaml` and creates the service
-   - Wait for deploy (~5 min)
+2. **Backend** — already live: https://viral-velocity-app.onrender.com
 
-3. **Get your URL**
-   - Render dashboard → service → URL like `https://viral-velocity-api.onrender.com`
-   - Test: open `https://YOUR-URL.onrender.com/api/health` → should show `{"ok":true,...}`
+3. **Admin web (new)**
+   - Easiest: [vercel.com](https://vercel.com) → Import GitHub repo `viral-velocity-app`
+   - **Root Directory:** `admin-web`
+   - **Build Command:** `npm run build`
+   - **Output:** `dist`
+   - Env var: `VITE_API_BASE` = `https://viral-velocity-app.onrender.com`
+   - Deploy → copy admin URL
 
-4. **Seed demo users (once)**
-   - Render → service → **Shell**:
-     ```bash
-     npm run seed
-     ```
+   Or on Render: New → Static Site → same repo, root `admin-web`, build `npm install && npm run build`, publish `dist`, env `VITE_API_BASE`.
 
-5. **Update mobile build**
-   - Edit `mobile/eas.json`:
-     ```json
-     "EXPO_PUBLIC_API_BASE": "https://YOUR-URL.onrender.com"
-     ```
+4. **Seed demo users (once)** on API Shell: `npm run seed`
+
+---
+
+## OTP emails (password reset / 2FA)
+
+Without SMTP, codes only appear in **Render Logs**.
+
+Add on Render → API service → Environment:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your@gmail.com
+SMTP_PASS=your_16_char_app_password
+MAIL_FROM=Viral Velocity <your@gmail.com>
+```
+
+Then Manual Deploy. Use a **real Gmail** in the app to receive OTPs.
 
 ---
 
 ## Notes
-- **Free Render** sleeps after ~15 min idle; first request may be slow.
-- **SQLite** on Render resets if the service is wiped; OK for testing, not production.
-- Never commit `.env` — JWT secret is auto-generated on Render.
+- Free Render sleeps after idle; first request may be slow.
+- SQLite / uploads on free Render can reset; OK for demos.

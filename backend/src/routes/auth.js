@@ -115,7 +115,7 @@ router.post(
         `INSERT INTO otp_codes (email, code_hash, purpose, expires_at) VALUES (?, ?, 'password_reset', ?)`
       ).run(email.toLowerCase(), code_hash, expires);
       const tpl = templates.otp(code);
-      await sendMail({ to: email, subject: tpl.subject, text: tpl.text });
+      await sendMail({ to: email, subject: tpl.subject, text: tpl.text, html: tpl.html });
     }
     res.json({ message: 'If an account exists for that email, an OTP has been sent.' });
   })

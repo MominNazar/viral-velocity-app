@@ -1,5 +1,13 @@
 const TOKEN_KEY = 'vv_admin_token';
 
+/** Production: set VITE_API_BASE=https://viral-velocity-app.onrender.com at build time.
+ *  Dev: leave unset — Vite proxies /api to localhost:4000. */
+const API_ROOT = String(import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+
+function apiUrl(path: string) {
+  return `${API_ROOT}/api${path}`;
+}
+
 export const tokenStore = {
   get: () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY),
   set: (t: string, remember: boolean) => {
@@ -31,7 +39,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
     const t = tokenStore.get();
     if (t) headers.Authorization = `Bearer ${t}`;
   }
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -51,7 +59,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
 
 export function downloadCsv(path: string, filename: string) {
   const t = tokenStore.get();
-  return fetch(`/api${path}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} })
+  return fetch(apiUrl(path), { headers: t ? { Authorization: `Bearer ${t}` } : {} })
     .then((r) => r.blob())
     .then((blob) => {
       const url = URL.createObjectURL(blob);

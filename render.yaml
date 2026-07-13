@@ -1,5 +1,4 @@
-# Render Blueprint — deploy backend from GitHub
-# Dashboard: New > Blueprint > connect repo (uses this file)
+# Render Blueprint — API + optional admin (or deploy admin on Vercel)
 services:
   - type: web
     name: viral-velocity-api
@@ -20,3 +19,16 @@ services:
         value: "4000"
       - key: PUBLIC_BASE_URL
         value: https://viral-velocity-app.onrender.com
+
+  - type: web
+    name: viral-velocity-admin
+    runtime: static
+    rootDir: admin-web
+    plan: free
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://viral-velocity-app.onrender.com
+      - key: NODE_VERSION
+        value: "22"
